@@ -1,0 +1,67 @@
+name: Verify EBN PHP Edition
+on:
+  push:
+    branches: [feature/ebn-php]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  php:
+    name: PHP 8.2 source, tests and HTTP smoke
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up PHP 8.2
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: "8.2"
+          extensions: curl, dom, libxml
+          coverage: none
+      - name: PHP version and extensions
+        run: php -v && php -m
+      - name: Syntax check
+        run: find php -type f -name '*.php' -print0 | xargs -0 -n1 php -l
+      - name: Deterministic unit checks
+        run: php php/tests/run.php
+      - name: Built-in PHP HTTP smoke
+        shell: bash
+        run: |
+          set -euo pipefail
+          php -S 127.0.0.1:8033 -t php php/router.php > /tmp/pinflix-php-http.log 2>&1 &
+          server_pid=$!
+          trap 'kill "$server_pid" 2>/dev/null || true' EXIT
+          for i in {1..15}; do
+            curl --silent --fail "http://127.0.0.1:8033/api/?action=health" > /tmp/pinflix-health.json && break
+            sleep 1
+          done
+          php -r '$j=json_decode(file_get_contents("/tmp/pinflix-health.json"),true);if(($j["ok"]??false)!==true)exit(1);'
+          test "$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:8033/private/catalogue.json)" = 403
+          test "$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:8033/api/?action=playback)" = 400
+          curl --silent --fail http://127.0.0.1:8033/ | grep -q 'PinFlix'
+          curl --silent --fail http://127.0.0.1:8033/assets/app.js | grep -q 'PinFlix'
+
+      - name: Package EBN cPanel release
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p dist/pinflix-php/{api,assets,private}
+          cp php/.htaccess php/index.php dist/pinflix-php/
+          cp php/api/index.php dist/pinflix-php/api/
+          cp php/assets/app.css php/assets/app.js php/assets/player.js dist/pinflix-php/assets/
+          cp php/private/.htaccess php/private/provider.php php/private/catalogue.json php/private/media.example.json dist/pinflix-php/private/
+          (cd dist/pinflix-php && zip -q -r ../pinflix-php-cpanel.zip .)
+          unzip -l dist/pinflix-php-cpanel.zip | grep -q 'private/.htaccess'
+          unzip -l dist/pinflix-php-cpanel.zip | grep -q 'assets/app.js'
+          if unzip -Z1 dist/pinflix-php-cpanel.zip | grep -E '(^tests/|\.env$|\.git/)' ; then exit 1; fi
+      - name: Upload EBN PHP release ZIP
+        uses: actions/upload-artifact@v4
+        with:
+          name: pinflix-php-cpanel
+          path: dist/pinflix-php-cpanel.zip
+          if-no-files-found: error
+          retention-days: 14

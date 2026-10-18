@@ -1,0 +1,19 @@
+Options -Indexes -MultiViews
+DirectoryIndex index.php
+<IfModule mod_rewrite.c>
+RewriteEngine On
+RewriteRule ^\.well-known/acme-challenge/ - [L]
+RewriteRule ^(?:private|tests)(?:/|$) - [F,L,NC]
+RewriteRule ^(?:\.|composer|package-lock|node_modules) - [F,L,NC]
+RewriteRule ^api/?$ api/index.php [L,QSA]
+RewriteRule ^api/index\.php$ - [L]
+RewriteRule ^(?:movies|series|search|library)/?$ index.php [L]
+RewriteRule ^title/(?:movie|series)-[0-9]{1,12}/?$ index.php [L]
+RewriteRule ^$ index.php [L]
+RewriteCond %{REQUEST_FILENAME} -f
+RewriteRule ^ - [L]
+RewriteRule ^ - [R=404,L]
+</IfModule>
+<FilesMatch "(?i)\.(?:json|md|lock|yml|yaml|ini|log|bak|sql|env|ts|tsx|cjs|mjs)$">
+Require all denied
+</FilesMatch>

@@ -1,0 +1,8 @@
+{
+  "movie-12345": {
+    "url": "https://media.example.org/licensed/movie.mp4"
+  },
+  "series-12345:1:1": {
+    "url": "https://media.example.org/licensed/episode.m3u8"
+  }
+}
