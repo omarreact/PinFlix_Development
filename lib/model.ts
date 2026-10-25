@@ -51,6 +51,8 @@ export type Catalogue = {
   categories: Category[];
   years: number[];
   hasNext: boolean;
+  /** Progress of the CineplexBD TV index used for A–Z / category filters. */
+  sourceIndex?: { count: number; hasMore: boolean; paused: boolean };
   page: number;
   stale: boolean;
   retrievedAt: string;

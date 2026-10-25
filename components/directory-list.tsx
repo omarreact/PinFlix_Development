@@ -34,6 +34,7 @@ export function DirectoryList({
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [advanced, setAdvanced] = useState(false);
+  const [showAllCategories, setShowAllCategories] = useState(false);
   const [revision, setRevision] = useState(0);
   const first = useRef(true);
   const version = useRef(0);
@@ -92,6 +93,18 @@ export function DirectoryList({
       controller.abort();
     };
   }, [filters, kind, revision, initialFilters.q]);
+  // CineplexBD shows 24 series at first, then lazily fetches more through its
+  // tvs_more.php endpoint. Keep expanding a small batch while the directory
+  // is open so letters, categories and search cover more than the first page.
+  useEffect(() => {
+    if (kind !== "series" || !data.sourceIndex?.hasMore || busy) return;
+    const timeout = window.setTimeout(
+      () => setRevision((previous) => previous + 1),
+      data.sourceIndex.paused ? 65_000 : 2_500,
+    );
+    return () => window.clearTimeout(timeout);
+  }, [kind, data.sourceIndex?.hasMore, data.sourceIndex?.paused,
+      data.sourceIndex?.count, busy]);
   const facet = data.facets || {
     genres: [],
     languages: [],
@@ -156,13 +169,23 @@ export function DirectoryList({
       </div>
       <div className="directory-topline">
         <span>
-          {data.total ?? data.items.length} indexed{" "}
-          {kind === "movie" ? "movies" : "series"}
+          {kind === "series" && data.sourceIndex
+            ? `${data.sourceIndex.count} CineplexBD series indexed`
+            : `${data.total ?? data.items.length} indexed movies`}
         </span>
         <span>
           Find your kind of story <ArrowUpRight size={14} />
         </span>
       </div>
+      {kind === "series" && data.sourceIndex && (
+        <p className="availability-note" role="status" aria-live="polite">
+          {data.sourceIndex.hasMore
+            ? data.sourceIndex.paused
+              ? "CineplexBD is temporarily unavailable. Showing indexed series; another attempt will run automatically."
+              : "Adding TV shows from CineplexBD's remaining pages. Categories and A–Z results expand as indexing continues."
+            : "All available CineplexBD TV pages have been indexed for this server session."}
+        </p>
+      )}
       <div className="directory-controls">
         <label className="directory-search">
           <Search size={20} />
@@ -219,6 +242,40 @@ export function DirectoryList({
           </button>
         )}
       </div>
+      {kind === "series" && categories.length > 0 && (
+        <section className="mt-5" aria-label="CineplexBD TV series categories">
+          <div className="mb-3 flex items-center justify-between gap-4">
+            <h2 className="text-sm font-semibold text-white">
+              Explore TV series by type
+            </h2>
+            {categories.length > 12 && (
+              <button
+                className="text-button"
+                aria-expanded={showAllCategories}
+                onClick={() => setShowAllCategories((current) => !current)}
+              >
+                {showAllCategories ? "Show fewer" : `View all ${categories.length} categories`}
+              </button>
+            )}
+          </div>
+          <div className="flex flex-wrap gap-2">
+            {(showAllCategories ? categories : categories.slice(0, 12)).map((c) => (
+              <button
+                key={c.name}
+                className="rounded-full border border-white/15 px-3 py-1.5 text-xs text-zinc-300 transition-colors hover:border-white/40 hover:text-white"
+                type="button"
+                aria-pressed={filters.category === c.name}
+                onClick={() => update("category", filters.category === c.name ? "" : c.name)}
+                style={filters.category === c.name
+                  ? { backgroundColor: "rgba(255,255,255,0.18)", color: "#fff" }
+                  : undefined}
+              >
+                {c.name}
+              </button>
+            ))}
+          </div>
+        </section>
+      )}
       {advanced && (
         <div className="advanced-filters" id="advanced-filters">
           {select("genre", "Genres", facet.genres, !facet.genres.length)}

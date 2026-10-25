@@ -33,6 +33,7 @@ import snapshot from "../../data/catalogue.json";
 import { titleMatch } from "../search";
 import { filterTitles, titleLetter } from "../directory";
 import { mediaProxyEnabled, providerPlaybackEnabled, signedStreamUrl } from "./stream-auth";
+import { seriesLibrary } from "./series-index";
 const detailSeeds = new Map(
   snapshot.details.map((d) => [d.title.id, TitleSchema.parse(d.title)]),
 );
@@ -100,14 +101,29 @@ export async function catalogue(q: Query = {}): Promise<Catalogue> {
     actor: q.actor?.trim() || undefined,
   };
   const page = Math.max(1, Math.min(q.page || 1, 10000));
+  // A–Z is a directory, not only CineplexBD's first 24 recent titles.
+  // Fetch a bounded batch of the provider's native TV-series pages each time
+  // the directory refreshes; all category and letter filters use this index.
+  const seriesProgress = q.directory && q.kind === "series" &&
+    process.env.PINFLIX_OFFLINE_CATALOGUE !== "true"
+    ? await seriesLibrary()
+    : null;
   const meta = await cached("categories", 900_000, async () => {
     try {
       if (process.env.PINFLIX_OFFLINE_CATALOGUE === "true")
         throw new Error("offline");
       const h = await html("/");
-      return { categories: categoriesFromHtml(h), years: yearsFromHtml(h) };
+      const all = [
+        ...seedCategories,
+        ...categoriesFromHtml(h),
+        ...(seriesProgress?.categories || []),
+      ];
+      const unique = new Map(all.map((c) => [c.kind + ":" + c.name, c]));
+      return { categories: [...unique.values()], years: yearsFromHtml(h) };
     } catch {
-      return { categories: seedCategories, years: snapshot.years };
+      const all = [...seedCategories, ...(seriesProgress?.categories || [])];
+      const unique = new Map(all.map((c) => [c.kind + ":" + c.name, c]));
+      return { categories: [...unique.values()], years: snapshot.years };
     }
   });
   let items: Title[] = [];
@@ -139,7 +155,25 @@ export async function catalogue(q: Query = {}): Promise<Catalogue> {
   try {
     if (process.env.PINFLIX_OFFLINE_CATALOGUE === "true")
       throw new Error("offline");
-    if (q.q || q.actor) {
+    if (seriesProgress) {
+      items = seriesProgress.items;
+      // Provider-wide search can find a series before the progressive index
+      // reaches its numeric offset; never substitute an unrelated data source.
+      if (q.q && q.q.length >= 2) {
+        try {
+          const body = await cached("series-search:" + q.q, 90_000, () =>
+            boundedTextSafe("/search_ajax.php?" +
+              new URLSearchParams({ q: q.q!, limit: "80" })),
+          );
+          items = dedupe([...items, ...searchFromJson(JSON.parse(body))
+            .filter((t) => t.kind === "series")]);
+        } catch {
+          // Continue with the indexed CineplexBD titles.
+        }
+      }
+      hasNext = seriesProgress.hasMore;
+      stale = seriesProgress.paused && !items.length;
+    } else if (q.q || q.actor) {
       params.set(q.actor ? "actors" : "q", q.actor || q.q!);
       const h = await html("/search.php?" + params);
       items = titlesFromHtml(h);
@@ -190,8 +224,9 @@ export async function catalogue(q: Query = {}): Promise<Catalogue> {
     items.forEach((t) => {
       index.set(t.id, t);
     });
-    if (index.size > 2500) {
-      for (const key of [...index.keys()].slice(0, index.size - 2500))
+    // A–Z indexing must not evict old series after 2,500 entries.
+    if (index.size > 20_000) {
+      for (const key of [...index.keys()].slice(0, index.size - 20_000))
         index.delete(key);
     }
   } catch {
@@ -217,6 +252,14 @@ export async function catalogue(q: Query = {}): Promise<Catalogue> {
     items: paginated
       ? filtered.slice((page - 1) * pageSize, page * pageSize)
       : filtered,
+    ...(seriesProgress ? {
+      sourceIndex: {
+        count: Math.max(seriesProgress.count,
+          [...index.values()].filter((t) => t.kind === "series").length),
+        hasMore: seriesProgress.hasMore,
+        paused: seriesProgress.paused,
+      },
+    } : {}),
     ...meta,
     hasNext: paginated ? page * pageSize < filtered.length : hasNext,
     total: paginated ? filtered.length : undefined,
