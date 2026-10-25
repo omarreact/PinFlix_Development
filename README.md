@@ -13,7 +13,7 @@ npm ci
 npm run dev
 ```
 
-Open http://localhost:3000. Guest watchlists and progress work on this device without account configuration.
+Open http://localhost:3000 on the host PC, or http://192.168.1.10:3000 from another device on your Private LAN when the host PC actually has that IPv4 address. Guest watchlists and progress work without account configuration. See [CineplexBD-only LAN setup](docs/LOCAL-CINEPLEXBD-LAN.md).
 
 ```sh
 npm run typecheck
@@ -25,7 +25,7 @@ npm start
 
 ## Included
 
-- Cinematic homepage: featured carousel, latest movies, supplied promotional video with fallback, latest series, Marvel/DC collections, decade browsing, rediscovery picks.
+- Cinematic homepage: featured carousel, latest movies, CineplexBD-only imagery (no unrelated promotional video), latest series, Marvel/DC collections, decade browsing, rediscovery picks.
 - `/movies` and `/series`: text-only lists with URL-preserved search/filter/sort state and server-side pagination.
 - Movie and series detail pages: source-gated in-page playback, season/episode selection, resume progress, and related titles.
 - Shared player: MP4/HLS, actual stream track menus, seek/speed/volume controls, fullscreen, theater mode, persistent mini-player, and supported picture-in-picture.
@@ -35,9 +35,9 @@ npm start
 
 ## Integration status
 
-Provider playback and downloads are disabled unless their respective approval settings are supplied. The optional Firebase account/sync service needs project configuration. The supplied promotional-video URL returned HTTP 403 during verification; its poster fallback is implemented.
+Provider playback and downloads are disabled unless their respective approval settings are supplied. The optional Firebase account/sync service needs project configuration. Non-CineplexBD video origins and unrelated promotional videos are excluded from this branch.
 
-Player controls were browser-tested with a generated local MP4 fixture. Live provider playback, configured Firebase accounts, and an actual production domain were not verified. No deployment was performed by this ZIP-edit task.
+This branch targets a local-network server, not the public Vercel production site. GitHub CI validates the TypeScript code, lint, unit tests and Next.js build. CineplexBD playback on your own ISP and actual device playback still require local verification.
 
 See **[UI_SETUP.md](UI_SETUP.md)** for configuration and deployment steps and **[UI_IMPLEMENTATION.md](UI_IMPLEMENTATION.md)** for the implementation and verification report.
 
