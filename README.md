@@ -48,7 +48,7 @@ access and embed.
 ## Included
 
 - Cinematic homepage: featured carousel, latest movies, CineplexBD-only imagery (no unrelated promotional video), latest series, Marvel/DC collections, decade browsing, rediscovery picks.
-- `/movies` and `/series`: text-only lists with URL-preserved search/filter/sort state and server-side pagination.
+- `/movies` and `/series`: text-only directories with URL-preserved search/filter/sort state, A–Z and pagination. TV Series progressively indexes CineplexBD `tvs.php` + `tvs_more.php` pages, exposes all available source categories, and shows indexing/unavailable status rather than claiming only 24 shows exist.
 - Movie and series detail pages: source-gated in-page playback, season/episode selection, resume progress, and related titles.
 - Shared player: MP4/HLS, actual stream track menus, seek/speed/volume controls, fullscreen, theater mode, persistent mini-player, and supported picture-in-picture.
 - `/my-list`: Watch Later and Continue Watching, with local persistence and removal controls.
