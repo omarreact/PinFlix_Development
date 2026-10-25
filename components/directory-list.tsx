@@ -34,6 +34,7 @@ export function DirectoryList({
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [advanced, setAdvanced] = useState(false);
+  const [showAllCategories, setShowAllCategories] = useState(false);
   const [revision, setRevision] = useState(0);
   const first = useRef(true);
   const version = useRef(0);
@@ -241,6 +242,40 @@ export function DirectoryList({
           </button>
         )}
       </div>
+      {kind === "series" && categories.length > 0 && (
+        <section className="mt-5" aria-label="CineplexBD TV series categories">
+          <div className="mb-3 flex items-center justify-between gap-4">
+            <h2 className="text-sm font-semibold text-white">
+              Explore TV series by type
+            </h2>
+            {categories.length > 12 && (
+              <button
+                className="text-button"
+                aria-expanded={showAllCategories}
+                onClick={() => setShowAllCategories((current) => !current)}
+              >
+                {showAllCategories ? "Show fewer" : `View all ${categories.length} categories`}
+              </button>
+            )}
+          </div>
+          <div className="flex flex-wrap gap-2">
+            {(showAllCategories ? categories : categories.slice(0, 12)).map((c) => (
+              <button
+                key={c.name}
+                className="rounded-full border border-white/15 px-3 py-1.5 text-xs text-zinc-300 transition-colors hover:border-white/40 hover:text-white"
+                type="button"
+                aria-pressed={filters.category === c.name}
+                onClick={() => update("category", filters.category === c.name ? "" : c.name)}
+                style={filters.category === c.name
+                  ? { backgroundColor: "rgba(255,255,255,0.18)", color: "#fff" }
+                  : undefined}
+              >
+                {c.name}
+              </button>
+            ))}
+          </div>
+        </section>
+      )}
       {advanced && (
         <div className="advanced-filters" id="advanced-filters">
           {select("genre", "Genres", facet.genres, !facet.genres.length)}
