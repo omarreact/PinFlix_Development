@@ -30,8 +30,8 @@ Never add `NEXT_PUBLIC_` to the signing secret. The existence of a media URL doe
 
 ## External source observations, not deployment guarantees
 
-- An external MP4 URL under `http://103.136.200.124:8086/...` was seen for DeSu7 (ID 79203). Public access, streaming rights, cross-origin compatibility, Range support, and Vercel reachability were **not** established.
-- A Loki (series ID 10527) watch page displayed six Season 2 episode links and a playback error. Its actual media URL and availability remain unknown.
+- A direct MP4 URL under `http://103.136.200.124:8086/...` was seen for DeSu7 (ID 79203). The saved player HTML sets it through JavaScript `videoSrc` and includes a **time-sensitive query token**; never hardcode or publish the full signed media address. It also supplies an external VTT caption file. Public access, streaming rights, cross-origin compatibility, Range support, and Vercel reachability were **not** established.
+- The newly supplied saved Loki (series ID 10527) watch HTML contains a relative HLS `<source>` under `/hls/t/Others%20Dubbed%20Series/.../master.m3u8` for Season 1 Episode 6 (a second saved view shows Episode 1). This is a **playlist URL in HTML**, not proof that its segments currently load or can legally be embedded elsewhere. The earlier live browser page showed a playback error, and Season 2 availability still needs verification.
 - An uploaded CineplexBD search-page HTML snapshot showed `search_ajax.php` and card links. Whether the endpoint responds from Vercel, and permission to reuse its catalog, remain unverified.
 - If the origin is reachable only over BDIX or certain Bangladeshi ISPs, Vercel serverless functions might not be able to connect.
 - No DRM/cookie restriction bypass or arbitrary third-party video rehosting is implemented or authorized by this change.
