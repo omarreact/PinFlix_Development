@@ -32,7 +32,7 @@ import {
 import snapshot from "../../data/catalogue.json";
 import { titleMatch } from "../search";
 import { filterTitles, titleLetter } from "../directory";
-import { mediaProxyEnabled, providerPlaybackEnabled, signedStreamUrl, testMediaEnabled } from "./stream-auth";
+import { mediaProxyEnabled, providerPlaybackEnabled, signedStreamUrl } from "./stream-auth";
 const detailSeeds = new Map(
   snapshot.details.map((d) => [d.title.id, TitleSchema.parse(d.title)]),
 );
@@ -388,7 +388,7 @@ export async function resolvePlayback(
   episode = 1,
 ): Promise<Playback> {
   const checkedAt = new Date().toISOString();
-  if (!providerPlaybackEnabled() && !testMediaEnabled())
+  if (!providerPlaybackEnabled())
     return {
       status: "authorization_required",
       message: "Playback is not available for this title yet.",
@@ -410,28 +410,6 @@ export async function resolvePlayback(
       message: "This episode is not available.",
       checkedAt,
     };
-
-  if (testMediaEnabled()) {
-    if (d.title.kind === "movie") {
-      return {
-        status: "ready",
-        message: "",
-        url: "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4",
-        format: "mp4",
-        subtitles: [],
-        checkedAt,
-      };
-    } else {
-      return {
-        status: "ready",
-        message: "",
-        url: "https://test-streams.mux.dev/x36xhzz/x36xhzz.m3u8",
-        format: "hls",
-        subtitles: [],
-        checkedAt,
-      };
-    }
-  }
 
   if (!mediaProxyEnabled())
     return {
