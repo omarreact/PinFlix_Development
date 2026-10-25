@@ -16,6 +16,7 @@ const config = {
   trailingSlash: true,
   poweredByHeader: false,
   reactStrictMode: true,
+  experimental: { agentUpgrade: "security" },
   allowedDevOrigins: ["localhost", "127.0.0.1", ...localNetworkOrigins],
   serverExternalPackages: ["cheerio"],
   async redirects() {
