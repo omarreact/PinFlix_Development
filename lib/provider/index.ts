@@ -101,6 +101,7 @@ export async function catalogue(q: Query = {}): Promise<Catalogue> {
     actor: q.actor?.trim() || undefined,
   };
   const page = Math.max(1, Math.min(q.page || 1, 10000));
+  const offlineMode = process.env.PINFLIX_OFFLINE_CATALOGUE === "true";
   // A–Z is a directory, not only CineplexBD's first 24 recent titles.
   // Fetch a bounded batch of the provider's native TV-series pages each time
   // the directory refreshes; all category and letter filters use this index.
@@ -278,6 +279,7 @@ export async function catalogue(q: Query = {}): Promise<Catalogue> {
     },
     page,
     stale,
+    offlineMode,
     retrievedAt: stale ? snapshot.retrievedAt : new Date().toISOString(),
   };
 }

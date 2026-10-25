@@ -177,6 +177,13 @@ export function DirectoryList({
           Find your kind of story <ArrowUpRight size={14} />
         </span>
       </div>
+      {data.offlineMode && (
+        <p className="availability-note" role="status">
+          Offline catalogue mode is enabled in this installation.
+          Live CineplexBD movies, categories and TV series are not being fetched.
+          Run npm run repair:local in the project folder, then restart the server.
+        </p>
+      )}
       {kind === "series" && data.sourceIndex && (
         <p className="availability-note" role="status" aria-live="polite">
           {data.sourceIndex.hasMore
@@ -462,7 +469,7 @@ export function DirectoryList({
           Next <ChevronRight size={16} />
         </button>
       </div>
-      {data.stale && (
+      {data.stale && !data.offlineMode && (
         <p className="availability-note">
           Showing the saved collection while the catalogue reconnects.
         </p>

@@ -53,6 +53,7 @@ export type Catalogue = {
   hasNext: boolean;
   /** Progress of the CineplexBD TV index used for A–Z / category filters. */
   sourceIndex?: { count: number; hasMore: boolean; paused: boolean };
+  offlineMode?: boolean;
   page: number;
   stale: boolean;
   retrievedAt: string;
