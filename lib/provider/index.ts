@@ -547,12 +547,17 @@ export async function resolvePlayback(
         checkedAt,
       };
 
-    source.subtitles = (source.subtitles || []).filter((t) => {
+    // Deliver only permitted subtitle tracks through the same signed HTTPS
+    // endpoint; HTTP subtitle URLs are blocked by modern HTTPS browsers.
+    source.subtitles = (source.subtitles || []).flatMap((t) => {
       try {
         allowedUrl(t.url, true);
-        return true;
+        return [{
+          ...t,
+          url: signedStreamUrl(t.url, id, season, episode),
+        }];
       } catch {
-        return false;
+        return [];
       }
     });
 
