@@ -9,6 +9,7 @@
     "dev": "next dev --hostname 0.0.0.0",
     "setup:lan": "node scripts/setup-lan.cjs",
     "build": "next build",
+    "prestart": "node scripts/ensure-build.cjs",
     "start": "next start --hostname 0.0.0.0",
     "typecheck": "tsc --noEmit",
     "lint": "eslint .",
