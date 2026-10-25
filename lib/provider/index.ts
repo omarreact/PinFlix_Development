@@ -494,24 +494,15 @@ export async function resolvePlayback(
       if (parsed) {
         try {
           allowedUrl(parsed.url, true);
-          const check = await safeFetch(
-            parsed.url,
-            {
-              method: "HEAD",
-              headers: {
-                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)",
-                Referer: "http://cineplexbd.net/",
-              },
-            },
-            true,
-          ).catch(() => null);
-          const ct = check?.headers.get("content-type") || "";
-          if (check?.ok && !ct.includes("text/html")) {
-            source = {
-              ...parsed,
-              url: signedStreamUrl(parsed.url, id, season, episode),
-            };
-          }
+          // CineplexBD MP4 links are assigned through JavaScript and may carry
+          // short-lived query tokens. A separate HEAD often fails even when a
+          // browser GET with Range succeeds. Do not reject a validated
+          // provider-origin source solely because HEAD is unsupported.
+          // The stream endpoint reports real GET failures to the player.
+          source = {
+            ...parsed,
+            url: signedStreamUrl(parsed.url, id, season, episode),
+          };
         } catch {
           /* Primary stream validation failed */
         }
