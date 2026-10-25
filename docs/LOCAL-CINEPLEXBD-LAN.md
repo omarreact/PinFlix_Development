@@ -21,8 +21,9 @@ cd PinFlix_Development
 git fetch origin
 git switch --track origin/fix/pinflix-audit-playback-20261025
 npm ci
-Copy-Item .env.example .env.local
-notepad .env.local
+# If you have a previous working .env.local, copy it privately into this folder.
+# Otherwise, run the explicit local setup option below.
+npm run setup:lan -- --enable-playback
 npm run dev
 ```
 
@@ -49,6 +50,8 @@ PINFLIX_DOWNLOADS_AUTHORIZED=false
 PINFLIX_OFFLINE_CATALOGUE=false
 ```
 
+**How this relates to your working `PinFlix(2).zip`:** The uploaded archive already had `CINEPLEX_PLAYBACK_AUTHORIZED=true`, `PINFLIX_DOWNLOADS_AUTHORIZED=true`, and `PINFLIX_MATURE_ENABLED=true` in its local environment. The newer signed proxy requires two additional settings: `PINFLIX_MEDIA_PROXY_ENABLED=true` and a private `MEDIA_PROXY_SECRET`. If you copy your previous `.env.local` into the new project and run `npm run setup:lan` (without arguments), the helper preserves your existing playback, download, and mature-content choices, enables the proxy for existing playback opt-in, and generates a secret locally. The script never prints the secret. If installing fresh, `npm run setup:lan -- --enable-playback` performs an **explicit local opt-in**; use that option only where you have permission to stream through the custom app. `npm run setup:lan -- --disable-playback` turns it off.
+
 Search, browsing and local CineplexBD snapshot fallback do not need playback credentials. **Playback intentionally stays unavailable** until you have explicit authorization for your intended reuse and change the two playback flags to `true`.
 
 Only for streaming that the provider has authorized you to play through your own interface, set:
@@ -66,6 +69,10 @@ node -e "console.log(require('node:crypto').randomBytes(32).toString('hex'))"
 ```
 
 Never commit the real secret, put it in a `NEXT_PUBLIC_` variable, or paste it into chat. Restart the dev server after editing `.env.local`. Downloads remain independently disabled unless they have separate permission and `PINFLIX_DOWNLOADS_AUTHORIZED=true`.
+
+## Why the old ZIP looked different
+
+The older ZIP used an implicit-allow playback check (`CINEPLEX_PLAYBACK_AUTHORIZED` only blocked when set to `false`) and returned unrelated sample video streams whenever no real CineplexBD source was found. Therefore its player appearing functional does not by itself demonstrate valid CineplexBD playback. The new code fails closed when unauthorized, never substitutes a different video, and no longer rejects the observed tokenized CineplexBD MP4 solely because its origin does not support an HTTP `HEAD` request. A parsed source still needs to succeed on an actual media `GET` request for video to play.
 
 ## Current provider page parsing
 
