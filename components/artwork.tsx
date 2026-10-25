@@ -4,12 +4,20 @@ import { Film } from "lucide-react";
 import assets from "@/data/artwork.json";
 export function artworkUrl(src: string | null) {
   if (!src) return null;
-  const local = (assets as Record<string, string>)[src];
-  if (local) return local;
-  return src.startsWith("http://cineplexbd.net/") ||
-    src.startsWith("https://cineplexbd.net/")
-    ? "/api/artwork/?url=" + encodeURIComponent(src)
-    : src;
+  if (/^\/artwork\/[a-zA-Z0-9._-]+$/.test(src)) return src;
+  try {
+    const u = new URL(src);
+    if (
+      u.hostname !== "cineplexbd.net" ||
+      u.port ||
+      !["http:", "https:"].includes(u.protocol) ||
+      !/^\/uploads\/[^?#]+\.(?:png|jpg|jpeg|webp)$/i.test(u.pathname)
+    ) return null;
+    const local = (assets as Record<string, string>)[src];
+    return local || "/api/artwork/?url=" + encodeURIComponent(src);
+  } catch {
+    return null;
+  }
 }
 export function Artwork({
   src,
