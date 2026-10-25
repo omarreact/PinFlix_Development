@@ -1,8 +1,22 @@
+import { networkInterfaces } from "node:os";
+
+// Allow the host machine's actual private LAN IPv4 addresses during development.
+// This avoids hardcoding one person's IP, without trusting arbitrary internet hosts.
+const localNetworkOrigins = Object.values(networkInterfaces())
+  .flat()
+  .filter((entry) => entry && entry.family === "IPv4" && !entry.internal)
+  .map((entry) => entry.address)
+  .filter((ip) =>
+    /^10\./.test(ip) ||
+    /^192\.168\./.test(ip) ||
+    /^172\.(1[6-9]|2\d|3[01])\./.test(ip),
+  );
+
 const config = {
   trailingSlash: true,
   poweredByHeader: false,
   reactStrictMode: true,
-  allowedDevOrigins: ["localhost", "192.168.1.10"],
+  allowedDevOrigins: ["localhost", "127.0.0.1", ...localNetworkOrigins],
   serverExternalPackages: ["cheerio"],
   async redirects() {
     return [
