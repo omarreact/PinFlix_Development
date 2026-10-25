@@ -184,31 +184,33 @@ export function searchFromJson(json: unknown): Title[] {
 }
 const SeriesMoreSchema = z.array(
   z.object({
-    id: z.number().int().positive(),
-    title: z.string(),
-    year: z.string().nullable().optional(),
+    id: z.union([z.number().int().positive(), z.string().regex(/^\\d+$/)]),
+    title: z.string().min(1),
+    year: z.union([z.string(), z.number()]).nullable().optional(),
     poster: z.string().nullable().optional(),
-    imdb_rating: z.string().nullable().optional(),
+    imdb_rating: z.union([z.string(), z.number()]).nullable().optional(),
     category: z.string().optional(),
+    resolution: z.string().nullable().optional(),
   }),
 );
 export function seriesMoreFromJson(json: unknown): Title[] {
-  return dedupe(
-    SeriesMoreSchema.parse(json).map((x) =>
-      TitleSchema.parse({
-        id: `series-${x.id}`,
-        providerId: String(x.id),
-        kind: "series",
-        title: x.title,
-        poster: imageUrl(x.poster),
-        year: Number(x.year) || null,
-        category: x.category || "",
-        language: language(x.category || ""),
-        rating: x.imdb_rating || null,
-        mature: isMature(x.category || ""),
-      }),
-    ),
-  );
+  const rows = SeriesMoreSchema.parse(json);
+  return dedupe(rows.flatMap((x) => {
+    const parsed = TitleSchema.safeParse({
+      id: `series-${x.id}`,
+      providerId: String(x.id),
+      kind: "series",
+      title: x.title.trim(),
+      poster: imageUrl(x.poster),
+      year: Number(x.year) || null,
+      category: x.category || "",
+      language: language(x.category || ""),
+      rating: x.imdb_rating == null ? null : String(x.imdb_rating),
+      quality: x.resolution || null,
+      mature: isMature(x.category || ""),
+    });
+    return parsed.success ? [parsed.data] : [];
+  }));
 }
 export function detailFromHtml(
   html: string,
