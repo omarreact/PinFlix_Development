@@ -1,16 +1,59 @@
-import { createHmac, timingSafeEqual } from "node:crypto";
+import { createHmac, randomBytes, timingSafeEqual } from "node:crypto";
+import { readFileSync, mkdirSync, writeFileSync } from "node:fs";
+import { join } from "node:path";
 import { allowedUrl } from "./http";
 
 const URL_LIFETIME_MS = 6 * 60 * 60 * 1000;
 
+/**
+ * Public CineplexBD catalog sources work without any mandatory configuration.
+ * A separate opt-out exists for operators who want to disable playback.
+ */
 export function providerPlaybackEnabled(): boolean {
-  return process.env.CINEPLEX_PLAYBACK_AUTHORIZED === "true";
+  return process.env.PINFLIX_PLAYBACK_DISABLED !== "true";
 }
 
 export function mediaProxyEnabled(): boolean {
   return providerPlaybackEnabled() &&
-    process.env.PINFLIX_MEDIA_PROXY_ENABLED === "true" &&
-    (process.env.MEDIA_PROXY_SECRET?.length || 0) >= 32;
+    process.env.PINFLIX_MEDIA_PROXY_DISABLED !== "true";
+}
+
+/**
+ * Automatically generate a server-only key for same-origin media links.
+ * The on-disk key keeps requests valid across Next.js dev worker reloads,
+ * and lives under gitignored .next/cache, not in the repository.
+ *
+ * Multi-instance/serverless production deployments should supply a shared
+ * MEDIA_PROXY_SECRET; individual ephemeral workers cannot share local files.
+ */
+let localMediaKey: string | undefined;
+function mediaKey(): string {
+  const configured = process.env.MEDIA_PROXY_SECRET;
+  if (configured && configured.length >= 32) return configured;
+  if (localMediaKey) return localMediaKey;
+  const dir = join(process.cwd(), ".next", "cache");
+  const filename = join(dir, "pinflix-local-media-key");
+  try {
+    mkdirSync(dir, { recursive: true });
+    try {
+      writeFileSync(filename, randomBytes(32).toString("hex"), {
+        encoding: "utf8",
+        mode: 0o600,
+        flag: "wx",
+      });
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code !== "EEXIST") throw error;
+    }
+    const existing = readFileSync(filename, "utf8").trim();
+    if (!/^[a-f0-9]{64}$/.test(existing))
+      throw new Error("invalid_local_media_key");
+    localMediaKey = existing;
+  } catch {
+    // Read-only hosting can still serve requests within a single instance.
+    // Multi-instance hosting must configure a shared key explicitly.
+    localMediaKey = randomBytes(32).toString("hex");
+  }
+  return localMediaKey;
 }
 
 function signature(
@@ -35,7 +78,7 @@ export function signedStreamUrl(
 ): string {
   if (!mediaProxyEnabled()) throw new Error("media_proxy_disabled");
   const url = allowedUrl(target, true).href;
-  const sig = signature(process.env.MEDIA_PROXY_SECRET!, id, season,
+  const sig = signature(mediaKey(), id, season,
     episode, url, expires);
   return "/api/stream/?" + new URLSearchParams({
     id,
@@ -72,7 +115,7 @@ export function verifyStreamSignature(
   } catch {
     return false;
   }
-  const expected = signature(process.env.MEDIA_PROXY_SECRET!, id,
+  const expected = signature(mediaKey(), id,
     season, episode, url, expires);
   return timingSafeEqual(Buffer.from(expected, "hex"), Buffer.from(sig, "hex"));
 }
