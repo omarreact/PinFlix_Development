@@ -1,0 +1,59 @@
+name: PinFlix Next.js Security Agent Upgrade
+on:
+  push:
+    branches:
+      - security/nextjs-agent-security-20261026
+    paths:
+      - .github/workflows/next-security-agent-20261026.yml
+
+permissions:
+  contents: write
+
+jobs:
+  security-upgrade:
+    runs-on: ubuntu-latest
+    timeout-minutes: 18
+    steps:
+      - name: Checkout security branch
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: true
+      - name: Use Node 24
+        uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+          cache: npm
+      - name: Install current PinFlix dependencies
+        run: npm ci --no-audit --no-fund
+      - name: Run requested next upgrade --agent=security
+        shell: bash
+        timeout-minutes: 3
+        run: |
+          set +e
+          timeout 120s ./node_modules/.bin/next upgrade --agent=security > next-agent-upgrade.log 2>&1
+          exit_code=$?
+          echo "next upgrade --agent=security exit code: $exit_code"
+          cat next-agent-upgrade.log
+          echo "Next step: install the stable security-patched Next.js release if the agent did not apply it."
+          exit 0
+      - name: Apply security-patched stable Next.js
+        run: npm install --save-exact next@16.4.3 eslint-config-next@16.4.3 --no-audit --no-fund
+      - name: Verify installed versions
+        run: |
+          node -e 'const p=require("./package.json"); const n=require("next/package.json"); console.log("Installed Next.js:",n.version,"Manifest:",p.dependencies.next); if(n.version!=="16.4.3") process.exit(1)'
+      - name: Commit security upgrade to isolated branch
+        shell: bash
+        run: |
+          git add package.json package-lock.json
+          if ! git diff --cached --quiet; then
+            git -c user.name="github-actions[bot]" -c user.email="41898282+github-actions[bot]@users.noreply.github.com" commit -m "fix(security): patch Next.js to 16.4.3"
+            git push origin HEAD:security/nextjs-agent-security-20261026
+          fi
+      - name: Typecheck
+        run: npm run typecheck
+      - name: Lint
+        run: npm run lint
+      - name: Unit tests
+        run: npm test
+      - name: Next.js production build
+        run: npm run build
