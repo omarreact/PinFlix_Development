@@ -92,6 +92,18 @@ export function DirectoryList({
       controller.abort();
     };
   }, [filters, kind, revision, initialFilters.q]);
+  // CineplexBD shows 24 series at first, then lazily fetches more through its
+  // tvs_more.php endpoint. Keep expanding a small batch while the directory
+  // is open so letters, categories and search cover more than the first page.
+  useEffect(() => {
+    if (kind !== "series" || !data.sourceIndex?.hasMore || busy) return;
+    const timeout = window.setTimeout(
+      () => setRevision((previous) => previous + 1),
+      data.sourceIndex.paused ? 65_000 : 2_500,
+    );
+    return () => window.clearTimeout(timeout);
+  }, [kind, data.sourceIndex?.hasMore, data.sourceIndex?.paused,
+      data.sourceIndex?.count, busy]);
   const facet = data.facets || {
     genres: [],
     languages: [],
@@ -156,13 +168,23 @@ export function DirectoryList({
       </div>
       <div className="directory-topline">
         <span>
-          {data.total ?? data.items.length} indexed{" "}
-          {kind === "movie" ? "movies" : "series"}
+          {kind === "series" && data.sourceIndex
+            ? `${data.sourceIndex.count} CineplexBD series indexed`
+            : `${data.total ?? data.items.length} indexed movies`}
         </span>
         <span>
           Find your kind of story <ArrowUpRight size={14} />
         </span>
       </div>
+      {kind === "series" && data.sourceIndex && (
+        <p className="availability-note" role="status" aria-live="polite">
+          {data.sourceIndex.hasMore
+            ? data.sourceIndex.paused
+              ? "CineplexBD is temporarily unavailable. Showing indexed series; another attempt will run automatically."
+              : "Adding TV shows from CineplexBD's remaining pages. Categories and A–Z results expand as indexing continues."
+            : "All available CineplexBD TV pages have been indexed for this server session."}
+        </p>
+      )}
       <div className="directory-controls">
         <label className="directory-search">
           <Search size={20} />
