@@ -590,7 +590,7 @@ export async function getCineplexCookies(
   const cached = cookieCache.get(key);
   if (cached && cached.expires > Date.now()) return cached.cookies;
   const pid = id ? id.replace(/^(series|movie)-/, "") : "10527";
-  const p = `/watch.php?series_id=${pid}&season=${season}&ep=${episode}`;
+  const p = `/watch.php?id=${pid}&season=${season}&ep=${episode}`;
   try {
     const res = await safeFetch(ORIGIN + p, {
       headers: { "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)" },
