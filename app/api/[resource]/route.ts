@@ -10,7 +10,6 @@ import {
 } from "@/lib/provider";
 import { ProviderError, safeFetch, boundedText, allowedUrl } from "@/lib/provider/http";
 import { mediaProxyEnabled, providerPlaybackEnabled, signedStreamUrl, verifyStreamSignature } from "@/lib/provider/stream-auth";
-import { BASE } from "@/lib/model";
 export const dynamic = "force-dynamic";
 const Params = z.object({
   kind: z.enum(["movie", "series"]).optional(),
