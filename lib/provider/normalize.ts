@@ -358,7 +358,7 @@ export function sourceFromHtml(html: string): {
   const url = new URL(value, baseOrigin).href;
   const format = /\.m3u8(?:\?|$)/i.test(url)
     ? "hls"
-    : /\.(mp4|mkv)(?:\?|$)/i.test(url)
+    : /\.mp4(?:\?|$)/i.test(url)
       ? "mp4"
       : null;
   if (!format) return null;
