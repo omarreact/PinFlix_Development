@@ -5,7 +5,6 @@ export function PromoVideoSection({ poster }: { poster: string | null }) {
   return (
     <section className="promo-section" aria-label="Explore beyond the screen">
       <CinematicVideo
-        url="https://customer-342mt1gy0ibqe0dl.cloudflarestream.com/ef234f5fd0d362d696350fccd7ebbd10/downloads/default.mp4"
         poster={poster}
         label="Cinematic promotional video"
       />
