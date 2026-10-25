@@ -1,0 +1,38 @@
+name: Verify PinFlix Provider Audit
+on:
+  push:
+    branches:
+      - fix/pinflix-audit-playback-20261025
+  pull_request:
+    branches:
+      - standalone-cloudflare
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+      - name: Install pinned dependencies
+        run: npm ci --no-audit --no-fund
+      - name: TypeScript
+        run: npm run typecheck
+      - name: ESLint
+        run: npm run lint
+      - name: Unit tests
+        run: npm test
+      - name: Next.js production build
+        env:
+          CINEPLEX_PLAYBACK_AUTHORIZED: 'false'
+          PINFLIX_MEDIA_PROXY_ENABLED: 'false'
+          PINFLIX_DOWNLOADS_AUTHORIZED: 'false'
+          PINFLIX_TEST_MEDIA: 'false'
+        run: npm run build
