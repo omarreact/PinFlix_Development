@@ -45,6 +45,30 @@ Playback requires the original provider to be reachable and the video to be
 available for the viewer's network. Use only content you are authorized to
 access and embed.
 
+## Migrating from the earlier working ZIP
+
+If you copied `.env.local` from `PinFlix_Development.zip`, its
+`PINFLIX_OFFLINE_CATALOGUE=true` disables live CineplexBD requests.
+This explains a directory appearing to contain only a tiny saved catalogue
+even when CineplexBD itself is reachable.
+
+After updating the repository, run:
+
+```powershell
+npm run repair:local
+npm run dev
+```
+
+The repair command creates a backup of `.env.local`, changes only the
+offline catalogue mode to `false`, preserves any other environment variables
+and does not print secret values. A fresh clone without `.env.local`
+needs **no repair**.
+
+The earlier working ZIP included a development test-media fallback that
+could play an unrelated sample MP4/HLS when CineplexBD failed. Current
+PinFlix does **not** falsely mark that sample as the requested title.
+If CineplexBD's real video is unavailable, the UI reports it as unavailable.
+
 ## Included
 
 - Cinematic homepage: featured carousel, latest movies, CineplexBD-only imagery (no unrelated promotional video), latest series, Marvel/DC collections, decade browsing, rediscovery picks.
