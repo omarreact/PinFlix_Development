@@ -3,11 +3,6 @@ import { allowedUrl } from "./http";
 
 const URL_LIFETIME_MS = 6 * 60 * 60 * 1000;
 
-export function testMediaEnabled(): boolean {
-  return process.env.NODE_ENV !== "production" &&
-    process.env.PINFLIX_TEST_MEDIA === "true";
-}
-
 export function providerPlaybackEnabled(): boolean {
   return process.env.CINEPLEX_PLAYBACK_AUTHORIZED === "true";
 }
