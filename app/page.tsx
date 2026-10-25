@@ -32,14 +32,11 @@ export default function Home() {
   // Keep spotlight entries connected to actual catalog routes and My List.
   const spotlightTitles = ["movie-78828", "movie-78724", "movie-34110"]
     .flatMap((id) => movies.find((movie) => movie.id === id) || []);
-  const spotlightItems: SpotlightItem[] = spotlightTitles.map((movie, index) => ({
+  const spotlightItems: SpotlightItem[] = spotlightTitles.map((movie) => ({
     movie,
-    trailerUrl: index === 0
-      ? process.env.PINFLIX_SPOTLIGHT_TRAILER_URL ||
-        "https://customer-342mt1gy0ibqe0dl.cloudflarestream.com/ef234f5fd0d362d696350fccd7ebbd10/downloads/default.mp4"
-      : null,
+    trailerUrl: null,
     synopsis: movie.synopsis ||
-      "Discover " + movie.title + " in the PinFlix collection. Watch the featured video and save this movie to My List.",
+      "Discover " + movie.title + " in the CineplexBD catalogue and save it to My List.",
   }));
   const classics = items.filter((t) => t.year && t.year < 2010);
   const gems = items
@@ -90,8 +87,6 @@ export default function Home() {
         <MarvelVsDc
           marvelTitles={items.filter((t) => universeFor(t) === "marvel")}
           dcTitles={items.filter((t) => universeFor(t) === "dc")}
-          marvelVideo={process.env.PINFLIX_MARVEL_PROMO_URL}
-          dcVideo={process.env.PINFLIX_DC_PROMO_URL}
         />
         <TimelessClassics titles={classics} />
         <HiddenGems titles={gems} />
