@@ -10,7 +10,8 @@ import {
   detailFromHtml,
   dedupe,
 } from "../lib/provider/normalize";
-import { allowedUrl, publicAddress, cached } from "../lib/provider/http";
+import { allowedUrl, publicAddress, cached, requestTimeoutMs } from "../lib/provider/http";
+import { providerPlaybackEnabled, mediaProxyEnabled, signedStreamUrl, verifyStreamSignature } from "../lib/provider/stream-auth";
 import { applyFilters, resolvePlayback } from "../lib/provider";
 import snapshot from "../data/catalogue.json";
 import { TitleSchema } from "../lib/model";
@@ -194,4 +195,83 @@ test("search filters exclude unrelated titles while combining year and quality",
     result.map((t) => t.id),
     [title.id],
   );
+});
+
+test("accepts direct-array AJAX search results", () => {
+  const [title] = searchFromJson([
+    { id: 10527, type: "series", title: "Loki", year: 2021, category: "English Series" },
+  ]);
+  assert.equal(title.id, "series-10527");
+});
+
+test("reads real episode query parameters when ep-card class is absent", () => {
+  const d = detailFromHtml(
+    '<h1>Loki <span>(2021)</span></h1>' +
+    '<select><option value="1">Season 1</option><option value="2">Season 2</option></select>' +
+    '<a href="/watch.php?id=10527&season=2&ep=6&autoplay=1#ep-6"><span>Loki [Hindi]-S2E6-1080P</span></a>' +
+    '<a href="/watch.php?id=99999&season=2&ep=5"><span>Other title</span></a>',
+    "series-10527",
+    2,
+  );
+  assert.deepEqual(d.title.seasons, [1, 2]);
+  assert.deepEqual(d.episodes.map((e) => e.number), [6]);
+  assert.match(d.episodes[0].title, /S2E6/i);
+});
+
+test("provider and relay permissions fail closed when unset", () => {
+  const prevPlayback = process.env.CINEPLEX_PLAYBACK_AUTHORIZED;
+  const prevProxy = process.env.PINFLIX_MEDIA_PROXY_ENABLED;
+  try {
+    delete process.env.CINEPLEX_PLAYBACK_AUTHORIZED;
+    process.env.PINFLIX_MEDIA_PROXY_ENABLED = "true";
+    assert.equal(providerPlaybackEnabled(), false);
+    assert.equal(mediaProxyEnabled(), false);
+  } finally {
+    if (prevPlayback === undefined) delete process.env.CINEPLEX_PLAYBACK_AUTHORIZED;
+    else process.env.CINEPLEX_PLAYBACK_AUTHORIZED = prevPlayback;
+    if (prevProxy === undefined) delete process.env.PINFLIX_MEDIA_PROXY_ENABLED;
+    else process.env.PINFLIX_MEDIA_PROXY_ENABLED = prevProxy;
+  }
+});
+
+test("proxy signatures bind URL and episode and reject tampering", () => {
+  const previous = {
+    playback: process.env.CINEPLEX_PLAYBACK_AUTHORIZED,
+    proxy: process.env.PINFLIX_MEDIA_PROXY_ENABLED,
+    secret: process.env.MEDIA_PROXY_SECRET,
+  };
+  try {
+    process.env.CINEPLEX_PLAYBACK_AUTHORIZED = "true";
+    process.env.PINFLIX_MEDIA_PROXY_ENABLED = "true";
+    process.env.MEDIA_PROXY_SECRET = "a".repeat(64);
+    const url = signedStreamUrl("http://103.136.200.124:8086/video.mp4", "series-10527", 2, 6);
+    const q = new URL(url, "https://pinflix.test").searchParams;
+    const check = (mediaUrl: string, ep: number, sig = q.get("sig")) =>
+      verifyStreamSignature(mediaUrl, "series-10527", 2, ep, q.get("exp"), sig);
+    assert.equal(check(q.get("url")!, 6), true);
+    assert.equal(check(q.get("url")!, 5), false);
+    assert.equal(check("http://103.136.200.124:8086/other.mp4", 6), false);
+    assert.equal(check(q.get("url")!, 6, "0".repeat(64)), false);
+    assert.equal(verifyStreamSignature(q.get("url")!, "series-10527", 2, 6, String(Date.now() - 10000), q.get("sig")), false);
+  } finally {
+    if (previous.playback === undefined) delete process.env.CINEPLEX_PLAYBACK_AUTHORIZED;
+    else process.env.CINEPLEX_PLAYBACK_AUTHORIZED = previous.playback;
+    if (previous.proxy === undefined) delete process.env.PINFLIX_MEDIA_PROXY_ENABLED;
+    else process.env.PINFLIX_MEDIA_PROXY_ENABLED = previous.proxy;
+    if (previous.secret === undefined) delete process.env.MEDIA_PROXY_SECRET;
+    else process.env.MEDIA_PROXY_SECRET = previous.secret;
+  }
+});
+
+test("bounded timeout uses environment value or safe default", () => {
+  const prev = process.env.CINEPLEX_REQUEST_TIMEOUT_MS;
+  try {
+    process.env.CINEPLEX_REQUEST_TIMEOUT_MS = "8000";
+    assert.equal(requestTimeoutMs(), 8000);
+    process.env.CINEPLEX_REQUEST_TIMEOUT_MS = "999999";
+    assert.equal(requestTimeoutMs(false), 4500);
+  } finally {
+    if (prev === undefined) delete process.env.CINEPLEX_REQUEST_TIMEOUT_MS;
+    else process.env.CINEPLEX_REQUEST_TIMEOUT_MS = prev;
+  }
 });
