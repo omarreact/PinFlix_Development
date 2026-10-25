@@ -1,4 +1,8 @@
 import { networkInterfaces } from "node:os";
+import { dirname } from "node:path";
+import { fileURLToPath } from "node:url";
+
+const projectRoot = dirname(fileURLToPath(import.meta.url));
 
 // Allow the host machine's actual private LAN IPv4 addresses during development.
 // This avoids hardcoding one person's IP, without trusting arbitrary internet hosts.
@@ -19,6 +23,10 @@ const config = {
   experimental: { agentUpgrade: "security" },
   allowedDevOrigins: ["localhost", "127.0.0.1", ...localNetworkOrigins],
   serverExternalPackages: ["cheerio"],
+  // An unrelated lockfile in the Windows user profile must not become
+  // PinFlix’s workspace root; resolve from this config, not the shell cwd.
+  turbopack: { root: projectRoot },
+  outputFileTracingRoot: projectRoot,
   async redirects() {
     return [
       {
