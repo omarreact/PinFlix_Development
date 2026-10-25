@@ -57,6 +57,12 @@ export function publicAddress(ip: string): boolean {
   if (ip.startsWith("::ffff:")) return publicAddress(ip.slice(7));
   return isIP(ip) === 6 && !/^(::|f[cd]|fe[89ab])/i.test(ip);
 }
+export function requestTimeoutMs(media = false): number {
+  const configured = Number(process.env.CINEPLEX_REQUEST_TIMEOUT_MS);
+  return Number.isFinite(configured) && configured >= 1000 && configured <= 30000
+    ? Math.floor(configured)
+    : media ? 8000 : 4500;
+}
 export async function safeFetch(
   value: string,
   options: RequestInit = {},
@@ -70,7 +76,7 @@ export async function safeFetch(
     const res = await fetch(u, {
       ...options,
       redirect: "manual",
-      signal: options.signal || AbortSignal.timeout(media ? 8000 : 2500),
+      signal: options.signal || AbortSignal.timeout(requestTimeoutMs(media)),
       cache: "no-store",
       headers: {
         Accept: "text/html,application/json,application/vnd.apple.mpegurl,*/*",
