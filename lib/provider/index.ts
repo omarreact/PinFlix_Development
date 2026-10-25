@@ -32,6 +32,7 @@ import {
 import snapshot from "../../data/catalogue.json";
 import { titleMatch } from "../search";
 import { filterTitles, titleLetter } from "../directory";
+import { mediaProxyEnabled, providerPlaybackEnabled, signedStreamUrl, testMediaEnabled } from "./stream-auth";
 const detailSeeds = new Map(
   snapshot.details.map((d) => [d.title.id, TitleSchema.parse(d.title)]),
 );
@@ -387,10 +388,7 @@ export async function resolvePlayback(
   episode = 1,
 ): Promise<Playback> {
   const checkedAt = new Date().toISOString();
-  if (
-    process.env.CINEPLEX_PLAYBACK_AUTHORIZED === "false" &&
-    process.env.PINFLIX_TEST_MEDIA !== "true"
-  )
+  if (!providerPlaybackEnabled() && !testMediaEnabled())
     return {
       status: "authorization_required",
       message: "Playback is not available for this title yet.",
@@ -413,7 +411,7 @@ export async function resolvePlayback(
       checkedAt,
     };
 
-  if (process.env.PINFLIX_TEST_MEDIA === "true") {
+  if (testMediaEnabled()) {
     if (d.title.kind === "movie") {
       return {
         status: "ready",
@@ -435,12 +433,19 @@ export async function resolvePlayback(
     }
   }
 
+  if (!mediaProxyEnabled())
+    return {
+      status: "unavailable",
+      message: "Secure media playback is not configured.",
+      checkedAt,
+    };
+
   const path =
     d.title.kind === "movie"
       ? "/player.php?" + new URLSearchParams({ id: d.title.providerId })
       : "/watch.php?" +
         new URLSearchParams({
-          series_id: d.title.providerId,
+          id: d.title.providerId,
           season: String(season),
           ep: String(episode),
         });
@@ -476,8 +481,8 @@ export async function resolvePlayback(
         if (parsed) {
           allowedUrl(parsed.url, true);
           source = {
-            url: `${BASE}/api/stream/?id=${id}&season=${season}&episode=${episode}&url=${encodeURIComponent(parsed.url)}`,
-            format: "hls",
+            url: signedStreamUrl(parsed.url, id, season, episode),
+            format: parsed.format,
             subtitles: parsed.subtitles || [],
           };
         }
@@ -490,10 +495,14 @@ export async function resolvePlayback(
           const meta = MetaSchema.parse(JSON.parse(metaRaw));
           const epData = meta.episodes?.[String(episode)];
           if (epData?.path) {
-            allowedUrl(epData.path, true);
+            const candidate = new URL(epData.path, ORIGIN).href;
+            allowedUrl(candidate, true);
+            const isHls = /\.m3u8(?:\?|$)/i.test(candidate);
+            if (!isHls && !/\.mp4(?:\?|$)/i.test(candidate))
+              throw new Error("unsupported_media_format");
             source = {
-              url: `${BASE}/api/stream/?id=${id}&season=${season}&episode=${episode}&url=${encodeURIComponent(epData.path)}`,
-              format: "hls",
+              url: signedStreamUrl(candidate, id, season, episode),
+              format: isHls ? "hls" : "mp4",
               subtitles: [],
             };
           }
@@ -522,7 +531,7 @@ export async function resolvePlayback(
           if ((!check || check.ok) && !ct.includes("text/html")) {
             source = {
               ...parsed,
-              url: `${BASE}/api/stream/?id=${id}&url=${encodeURIComponent(parsed.url)}`,
+              url: signedStreamUrl(parsed.url, id, season, episode),
             };
           }
         } catch {
@@ -531,21 +540,12 @@ export async function resolvePlayback(
       }
     }
 
-    if (!source) {
-      if (d.title.kind === "movie") {
-        source = {
-          url: "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4",
-          format: "mp4",
-          subtitles: [],
-        };
-      } else {
-        source = {
-          url: "https://test-streams.mux.dev/x36xhzz/x36xhzz.m3u8",
-          format: "hls",
-          subtitles: [],
-        };
-      }
-    }
+    if (!source)
+      return {
+        status: "unavailable",
+        message: "No verified playable source was found for this title.",
+        checkedAt,
+      };
 
     source.subtitles = (source.subtitles || []).filter((t) => {
       try {
@@ -561,7 +561,7 @@ export async function resolvePlayback(
       message: "",
       ...source,
       checkedAt,
-      ...(process.env.PINFLIX_DOWNLOADS_AUTHORIZED !== "false" &&
+      ...(process.env.PINFLIX_DOWNLOADS_AUTHORIZED === "true" &&
       source.format === "mp4"
         ? {
             download: {
