@@ -275,3 +275,19 @@ test("bounded timeout uses environment value or safe default", () => {
     else process.env.CINEPLEX_REQUEST_TIMEOUT_MS = prev;
   }
 });
+
+test("parses actual movie JavaScript player and TV HLS markup shapes", () => {
+  const movie = sourceFromHtml(
+    '<video id="player"><track src="http://103.136.200.124:8086/captions.vtt" label="English" srclang="en"></video>' +
+    '<script>const videoSrc = "http://103.136.200.124:8086/Movies/sample.mp4?token=fixture";</script>',
+  );
+  assert.equal(movie?.format, "mp4");
+  assert.equal(movie?.url, "http://103.136.200.124:8086/Movies/sample.mp4?token=fixture");
+  assert.equal(movie?.subtitles.length, 1);
+
+  const tv = sourceFromHtml(
+    '<video id="player"><source src="/hls/t/Series/Loki%20S1E6.mp4/master.m3u8" type="application/x-mpegURL"></video>',
+  );
+  assert.equal(tv?.format, "hls");
+  assert.equal(tv?.url, "http://cineplexbd.net/hls/t/Series/Loki%20S1E6.mp4/master.m3u8");
+});
