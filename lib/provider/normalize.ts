@@ -184,7 +184,7 @@ export function searchFromJson(json: unknown): Title[] {
 }
 const SeriesMoreSchema = z.array(
   z.object({
-    id: z.union([z.number().int().positive(), z.string().regex(/^\\d+$/)]),
+    id: z.union([z.number().int().positive(), z.string().regex(/^[0-9]+$/)]),
     title: z.string().min(1),
     year: z.union([z.string(), z.number()]).nullable().optional(),
     poster: z.string().nullable().optional(),
