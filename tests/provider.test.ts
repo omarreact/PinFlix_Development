@@ -140,39 +140,55 @@ test("year filtering uses real normalized records", () => {
   assert.ok(result.length > 0);
   assert.ok(result.every((t) => t.year === 2026 && t.kind === "movie"));
 });
-test("playback gate never exposes a source without authorization", async () => {
-  const previous = process.env.CINEPLEX_PLAYBACK_AUTHORIZED;
-  const previousTest = process.env.PINFLIX_TEST_MEDIA;
-  process.env.CINEPLEX_PLAYBACK_AUTHORIZED = "false";
-  delete process.env.PINFLIX_TEST_MEDIA;
+test("fresh installs enable only CineplexBD playback by default", () => {
+  const previous = {
+    disabled: process.env.PINFLIX_PLAYBACK_DISABLED,
+    proxyDisabled: process.env.PINFLIX_MEDIA_PROXY_DISABLED,
+    secret: process.env.MEDIA_PROXY_SECRET,
+  };
   try {
-    const p = await resolvePlayback("movie-40571");
-    assert.equal(p.status, "authorization_required");
-    assert.equal(p.url, undefined);
+    delete process.env.PINFLIX_PLAYBACK_DISABLED;
+    delete process.env.PINFLIX_MEDIA_PROXY_DISABLED;
+    delete process.env.MEDIA_PROXY_SECRET;
+    assert.equal(providerPlaybackEnabled(), true);
+    assert.equal(mediaProxyEnabled(), true);
+    const url = signedStreamUrl(
+      "http://cineplexbd.net/hls/t/test/master.m3u8",
+      "series-10527", 1, 2,
+    );
+    const p = new URL(url, "http://localhost:3000").searchParams;
+    assert.equal(
+      verifyStreamSignature(p.get("url")!, "series-10527", 1, 2,
+        p.get("exp"), p.get("sig")),
+      true,
+    );
+    assert.equal(
+      verifyStreamSignature(p.get("url")!, "series-10527", 1, 3,
+        p.get("exp"), p.get("sig")),
+      false,
+    );
   } finally {
-    if (previous === undefined) delete process.env.CINEPLEX_PLAYBACK_AUTHORIZED;
-    else process.env.CINEPLEX_PLAYBACK_AUTHORIZED = previous;
-    if (previousTest === undefined) delete process.env.PINFLIX_TEST_MEDIA;
-    else process.env.PINFLIX_TEST_MEDIA = previousTest;
+    for (const [key, value] of [
+      ["PINFLIX_PLAYBACK_DISABLED", previous.disabled],
+      ["PINFLIX_MEDIA_PROXY_DISABLED", previous.proxyDisabled],
+      ["MEDIA_PROXY_SECRET", previous.secret],
+    ] as const) {
+      if (value === undefined) delete process.env[key];
+      else process.env[key] = value;
+    }
   }
 });
-test("development sample mode does not inject unrelated video", async () => {
-  const previous = process.env.CINEPLEX_PLAYBACK_AUTHORIZED;
-  const previousTest = process.env.PINFLIX_TEST_MEDIA;
+
+test("sample-video fixture flags cannot inject unrelated video sources", () => {
+  const previous = process.env.PINFLIX_TEST_MEDIA;
   try {
-    delete process.env.CINEPLEX_PLAYBACK_AUTHORIZED;
     process.env.PINFLIX_TEST_MEDIA = "true";
-    const movie = await resolvePlayback("movie-77533");
-    const series = await resolvePlayback("series-31416", 1, 1);
-    assert.equal(movie.status, "authorization_required");
-    assert.equal(series.status, "authorization_required");
-    assert.equal(movie.url, undefined);
-    assert.equal(series.url, undefined);
+    assert.equal(sourceFromHtml("<video></video>"), null);
+    assert.throws(() => allowedUrl("https://test-streams.mux.dev/x.m3u8", true));
+    assert.throws(() => allowedUrl("https://commondatastorage.googleapis.com/sample.mp4", true));
   } finally {
-    if (previous === undefined) delete process.env.CINEPLEX_PLAYBACK_AUTHORIZED;
-    else process.env.CINEPLEX_PLAYBACK_AUTHORIZED = previous;
-    if (previousTest === undefined) delete process.env.PINFLIX_TEST_MEDIA;
-    else process.env.PINFLIX_TEST_MEDIA = previousTest;
+    if (previous === undefined) delete process.env.PINFLIX_TEST_MEDIA;
+    else process.env.PINFLIX_TEST_MEDIA = previous;
   }
 });
 
@@ -219,19 +235,24 @@ test("reads real episode query parameters when ep-card class is absent", () => {
   assert.match(d.episodes[0].title, /S2E6/i);
 });
 
-test("provider and relay permissions fail closed when unset", () => {
-  const prevPlayback = process.env.CINEPLEX_PLAYBACK_AUTHORIZED;
-  const prevProxy = process.env.PINFLIX_MEDIA_PROXY_ENABLED;
+test("operator can disable playback or the proxy explicitly", () => {
+  const previous = {
+    playback: process.env.PINFLIX_PLAYBACK_DISABLED,
+    proxy: process.env.PINFLIX_MEDIA_PROXY_DISABLED,
+  };
   try {
-    delete process.env.CINEPLEX_PLAYBACK_AUTHORIZED;
-    process.env.PINFLIX_MEDIA_PROXY_ENABLED = "true";
+    process.env.PINFLIX_PLAYBACK_DISABLED = "true";
     assert.equal(providerPlaybackEnabled(), false);
     assert.equal(mediaProxyEnabled(), false);
+    delete process.env.PINFLIX_PLAYBACK_DISABLED;
+    process.env.PINFLIX_MEDIA_PROXY_DISABLED = "true";
+    assert.equal(providerPlaybackEnabled(), true);
+    assert.equal(mediaProxyEnabled(), false);
   } finally {
-    if (prevPlayback === undefined) delete process.env.CINEPLEX_PLAYBACK_AUTHORIZED;
-    else process.env.CINEPLEX_PLAYBACK_AUTHORIZED = prevPlayback;
-    if (prevProxy === undefined) delete process.env.PINFLIX_MEDIA_PROXY_ENABLED;
-    else process.env.PINFLIX_MEDIA_PROXY_ENABLED = prevProxy;
+    if (previous.playback === undefined) delete process.env.PINFLIX_PLAYBACK_DISABLED;
+    else process.env.PINFLIX_PLAYBACK_DISABLED = previous.playback;
+    if (previous.proxy === undefined) delete process.env.PINFLIX_MEDIA_PROXY_DISABLED;
+    else process.env.PINFLIX_MEDIA_PROXY_DISABLED = previous.proxy;
   }
 });
 
