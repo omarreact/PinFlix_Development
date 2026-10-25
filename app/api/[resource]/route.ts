@@ -8,7 +8,8 @@ import {
   getCineplexCookies,
   type Query,
 } from "@/lib/provider";
-import { ProviderError, safeFetch, allowedUrl } from "@/lib/provider/http";
+import { ProviderError, safeFetch, boundedText, allowedUrl } from "@/lib/provider/http";
+import { mediaProxyEnabled, providerPlaybackEnabled, signedStreamUrl, verifyStreamSignature } from "@/lib/provider/stream-auth";
 import { BASE } from "@/lib/model";
 export const dynamic = "force-dynamic";
 const Params = z.object({
@@ -81,8 +82,8 @@ export async function GET(
       result = await resolvePlayback(id, season, episode);
     else if (resource === "download" && id) {
       if (
-        process.env.PINFLIX_DOWNLOADS_AUTHORIZED === "false" ||
-        process.env.CINEPLEX_PLAYBACK_AUTHORIZED === "false"
+        process.env.PINFLIX_DOWNLOADS_AUTHORIZED !== "true" ||
+        !providerPlaybackEnabled() || !mediaProxyEnabled()
       )
         return NextResponse.json(
           { error: "Downloads are unavailable for this title." },
@@ -209,17 +210,22 @@ export async function GET(
       }
       return NextResponse.redirect(pb.url);
     } else if (resource === "stream") {
-      if (process.env.CINEPLEX_PLAYBACK_AUTHORIZED === "false")
+      if (!mediaProxyEnabled())
         return NextResponse.json(
-          { error: "Playback is unavailable for this title." },
+          { error: "Playback proxy is disabled." },
           { status: 403 },
         );
-      if (!id)
-        return NextResponse.json({ error: "Missing title." }, { status: 400 });
-      await detail(id, season);
       const targetUrl = p.data.url;
-      if (!targetUrl)
-        return NextResponse.json({ error: "Missing url." }, { status: 400 });
+      if (!id || !targetUrl ||
+        !verifyStreamSignature(
+          targetUrl, id, season, episode,
+          req.nextUrl.searchParams.get("exp"),
+          req.nextUrl.searchParams.get("sig"),
+        ))
+        return NextResponse.json(
+          { error: "Invalid or expired playback request." },
+          { status: 403 },
+        );
       allowedUrl(targetUrl, true);
       const cookies = await getCineplexCookies(id, season, episode);
       const reqHeaders: Record<string, string> = {
@@ -242,41 +248,24 @@ export async function GET(
         contentType.includes("application/x-mpegURL");
 
       if (isM3u8) {
-        const text = await upstream.text();
-        const rewritten = text
+        if (!upstream.ok)
+          return NextResponse.json(
+            { error: "Media source unavailable." },
+            { status: 502 },
+          );
+        const playlist = await boundedText(upstream, 1_000_000);
+        const signedChild = (value: string) =>
+          signedStreamUrl(new URL(value, targetUrl).href, id, season, episode);
+        const rewritten = playlist
           .split("\n")
           .map((line) => {
             const trimmed = line.trim();
             if (!trimmed) return line;
-            if (trimmed.startsWith("#EXT-X-KEY")) {
-              return trimmed.replace(/URI="([^"]+)"/, (_, uri) => {
-                let abs = uri;
-                try {
-                  abs = new URL(uri, targetUrl).href;
-                } catch {
-                  const safe = uri
-                    .split("/")
-                    .map((s: string) =>
-                      encodeURIComponent(decodeURIComponent(s)),
-                    )
-                    .join("/");
-                  abs = new URL(safe, targetUrl).href;
-                }
-                return `URI="${BASE}/api/stream/?id=${id || ""}&season=${season || 1}&episode=${episode || 1}&url=${encodeURIComponent(abs)}"`;
-              });
-            }
-            if (trimmed.startsWith("#")) return line;
-            let abs = trimmed;
-            try {
-              abs = new URL(trimmed, targetUrl).href;
-            } catch {
-              const safe = trimmed
-                .split("/")
-                .map((s: string) => encodeURIComponent(decodeURIComponent(s)))
-                .join("/");
-              abs = new URL(safe, targetUrl).href;
-            }
-            return `${BASE}/api/stream/?id=${id || ""}&season=${season || 1}&episode=${episode || 1}&url=${encodeURIComponent(abs)}`;
+            if (trimmed.startsWith("#"))
+              return line.replace(/URI="([^"]+)"/g, (_, uri: string) =>
+                `URI="${signedChild(uri)}"`,
+              );
+            return signedChild(trimmed);
           })
           .join("\n");
         return new NextResponse(rewritten, {
@@ -284,11 +273,12 @@ export async function GET(
           headers: {
             "Content-Type": "application/vnd.apple.mpegurl",
             "Cache-Control": "no-cache",
-            "Access-Control-Allow-Origin": "*",
           },
         });
       }
 
+      if (!upstream.ok)
+        return NextResponse.json({ error: "Media source unavailable." }, { status: 502 });
       const resHeaders = new Headers();
       let streamType = upstream.headers.get("content-type") || "";
       if (
@@ -312,7 +302,6 @@ export async function GET(
         resHeaders.set("Accept-Ranges", upstream.headers.get("accept-ranges")!);
       if (upstream.headers.has("content-range"))
         resHeaders.set("Content-Range", upstream.headers.get("content-range")!);
-      resHeaders.set("Access-Control-Allow-Origin", "*");
 
       return new NextResponse(upstream.body, {
         status: upstream.status,
