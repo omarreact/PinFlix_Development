@@ -73,16 +73,26 @@ export async function safeFetch(
     const records = await lookup(u.hostname, { all: true });
     if (!records.length || records.some((r) => !publicAddress(r.address)))
       throw new ProviderError("restricted_destination", 403);
-    const res = await fetch(u, {
+    // The timeout controls response headers only: don't abort an active media stream.
+    const controller = new AbortController();
+    const deadline = setTimeout(() => controller.abort(), requestTimeoutMs(media));
+    let res: Response;
+    try {
+      res = await fetch(u, {
       ...options,
       redirect: "manual",
-      signal: options.signal || AbortSignal.timeout(requestTimeoutMs(media)),
+      signal: options.signal
+        ? AbortSignal.any([options.signal, controller.signal])
+        : controller.signal,
       cache: "no-store",
       headers: {
         Accept: "text/html,application/json,application/vnd.apple.mpegurl,*/*",
         ...options.headers,
       },
     });
+    } finally {
+      clearTimeout(deadline);
+    }
     if (res.status >= 300 && res.status < 400) {
       await res.body?.cancel();
       const location = res.headers.get("location");
