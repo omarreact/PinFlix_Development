@@ -1,0 +1,35 @@
+name: Check Public Standalone PinFlix
+on:
+  push:
+    branches: [standalone-cloudflare]
+    paths:
+      - '.github/workflows/standalone-live-check.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    steps:
+      - name: Check HTML and source status with browser-style headers
+        run: |
+          python3 - <<'PY'
+          import urllib.request,urllib.error
+          base="https://pinflix-standalone.farukkhanone.workers.dev"
+          for path in ["/","/api/status"]:
+              url=base+path
+              req=urllib.request.Request(url,headers={
+                  "User-Agent":"Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
+                  "Accept":"text/html,application/json;q=0.9,*/*;q=0.8",
+                  "Accept-Language":"en-US,en;q=0.9",
+                  "Sec-Fetch-Mode":"navigate",
+              })
+              try:
+                  with urllib.request.urlopen(req,timeout=25) as r:
+                      print("PATH:",path,"HTTP:",r.status,"BODY:",r.read(1100).decode("utf-8","replace"))
+              except urllib.error.HTTPError as exc:
+                  print("PATH:",path,"HTTP:",exc.code,"ERROR BODY:",exc.read(300).decode("utf-8","replace"))
+              except Exception as exc:
+                  print("PATH:",path,"ERROR:",str(exc)[:130])
+          PY

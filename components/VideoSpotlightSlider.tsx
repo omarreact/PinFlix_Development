@@ -13,7 +13,7 @@ export type SpotlightItem = {
   movie: Title;
   /** Optional provider ID / route segment. Defaults to movie.id. */
   slug?: string;
-  /** Self-hosted, Cloudflare Stream MP4, or another browser-playable video URL. */
+  /** Optional CineplexBD-authorized video only (none is enabled by default). */
   trailerUrl?: string | null;
   posterUrl?: string | null;
   titleLogoUrl?: string | null;
@@ -45,13 +45,12 @@ const sampleMovie: Title = {
   universe: null,
 };
 
-/** Demonstration copy and an existing PinFlix promotional reel, not official film metadata/trailer. */
+/** CineplexBD catalogue examples without unrelated trailer playback. */
 export const MOCK_SPOTLIGHT_ITEMS: SpotlightItem[] = [
   {
     movie: sampleMovie,
     slug: "movie-78828",
-    trailerUrl:
-      "https://customer-342mt1gy0ibqe0dl.cloudflarestream.com/ef234f5fd0d362d696350fccd7ebbd10/downloads/default.mp4",
+    trailerUrl: null,
     posterUrl: null,
     synopsis:
       "During a plague's reign of terror, a devout figure and an ambiguous stranger set out to trade supplies for an alleged cure in a...",

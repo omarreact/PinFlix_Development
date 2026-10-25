@@ -1,0 +1,27 @@
+name: PinFlix — Check alternate existing media gateway
+on:
+  push:
+    branches: [standalone-cloudflare]
+    paths:
+      - '.github/workflows/check-alt-gateway.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    steps:
+      - name: Read-only alternate API route check
+        run: |
+          python3 - <<'PY'
+          import urllib.request,urllib.error
+          base="http://pinflix.akogs-fashion.com"
+          for path in ["/site/api.php?action=health","/site/api.php?action=catalogue&kind=movie&page=1","/pinflix-api/status.php"]:
+              req=urllib.request.Request(base+path,headers={"User-Agent":"Mozilla/5.0"})
+              try:
+                  with urllib.request.urlopen(req,timeout=12) as r:
+                      print(path,"HTTP",r.status,"TYPE",r.headers.get("content-type"),"BODY",r.read(110).decode("utf-8","replace"))
+              except urllib.error.HTTPError as e:print(path,"HTTP",e.code)
+              except Exception as e:print(path,"ERROR",str(e)[:120])
+          PY

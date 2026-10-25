@@ -32,6 +32,7 @@ import {
 import snapshot from "../../data/catalogue.json";
 import { titleMatch } from "../search";
 import { filterTitles, titleLetter } from "../directory";
+import { mediaProxyEnabled, providerPlaybackEnabled, signedStreamUrl } from "./stream-auth";
 const detailSeeds = new Map(
   snapshot.details.map((d) => [d.title.id, TitleSchema.parse(d.title)]),
 );
@@ -387,10 +388,7 @@ export async function resolvePlayback(
   episode = 1,
 ): Promise<Playback> {
   const checkedAt = new Date().toISOString();
-  if (
-    process.env.CINEPLEX_PLAYBACK_AUTHORIZED === "false" &&
-    process.env.PINFLIX_TEST_MEDIA !== "true"
-  )
+  if (!providerPlaybackEnabled())
     return {
       status: "authorization_required",
       message: "Playback is not available for this title yet.",
@@ -413,34 +411,19 @@ export async function resolvePlayback(
       checkedAt,
     };
 
-  if (process.env.PINFLIX_TEST_MEDIA === "true") {
-    if (d.title.kind === "movie") {
-      return {
-        status: "ready",
-        message: "",
-        url: "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4",
-        format: "mp4",
-        subtitles: [],
-        checkedAt,
-      };
-    } else {
-      return {
-        status: "ready",
-        message: "",
-        url: "https://test-streams.mux.dev/x36xhzz/x36xhzz.m3u8",
-        format: "hls",
-        subtitles: [],
-        checkedAt,
-      };
-    }
-  }
+  if (!mediaProxyEnabled())
+    return {
+      status: "unavailable",
+      message: "Secure media playback is not configured.",
+      checkedAt,
+    };
 
   const path =
     d.title.kind === "movie"
       ? "/player.php?" + new URLSearchParams({ id: d.title.providerId })
       : "/watch.php?" +
         new URLSearchParams({
-          series_id: d.title.providerId,
+          id: d.title.providerId,
           season: String(season),
           ep: String(episode),
         });
@@ -476,8 +459,8 @@ export async function resolvePlayback(
         if (parsed) {
           allowedUrl(parsed.url, true);
           source = {
-            url: `${BASE}/api/stream/?id=${id}&season=${season}&episode=${episode}&url=${encodeURIComponent(parsed.url)}`,
-            format: "hls",
+            url: signedStreamUrl(parsed.url, id, season, episode),
+            format: parsed.format,
             subtitles: parsed.subtitles || [],
           };
         }
@@ -490,10 +473,14 @@ export async function resolvePlayback(
           const meta = MetaSchema.parse(JSON.parse(metaRaw));
           const epData = meta.episodes?.[String(episode)];
           if (epData?.path) {
-            allowedUrl(epData.path, true);
+            const candidate = new URL(epData.path, ORIGIN).href;
+            allowedUrl(candidate, true);
+            const isHls = /\.m3u8(?:\?|$)/i.test(candidate);
+            if (!isHls && !/\.mp4(?:\?|$)/i.test(candidate))
+              throw new Error("unsupported_media_format");
             source = {
-              url: `${BASE}/api/stream/?id=${id}&season=${season}&episode=${episode}&url=${encodeURIComponent(epData.path)}`,
-              format: "hls",
+              url: signedStreamUrl(candidate, id, season, episode),
+              format: isHls ? "hls" : "mp4",
               subtitles: [],
             };
           }
@@ -507,52 +494,39 @@ export async function resolvePlayback(
       if (parsed) {
         try {
           allowedUrl(parsed.url, true);
-          const check = await safeFetch(
-            parsed.url,
-            {
-              method: "HEAD",
-              headers: {
-                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)",
-                Referer: "http://cineplexbd.net/",
-              },
-            },
-            true,
-          ).catch(() => null);
-          const ct = check?.headers.get("content-type") || "";
-          if ((!check || check.ok) && !ct.includes("text/html")) {
-            source = {
-              ...parsed,
-              url: `${BASE}/api/stream/?id=${id}&url=${encodeURIComponent(parsed.url)}`,
-            };
-          }
+          // CineplexBD MP4 links are assigned through JavaScript and may carry
+          // short-lived query tokens. A separate HEAD often fails even when a
+          // browser GET with Range succeeds. Do not reject a validated
+          // provider-origin source solely because HEAD is unsupported.
+          // The stream endpoint reports real GET failures to the player.
+          source = {
+            ...parsed,
+            url: signedStreamUrl(parsed.url, id, season, episode),
+          };
         } catch {
           /* Primary stream validation failed */
         }
       }
     }
 
-    if (!source) {
-      if (d.title.kind === "movie") {
-        source = {
-          url: "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4",
-          format: "mp4",
-          subtitles: [],
-        };
-      } else {
-        source = {
-          url: "https://test-streams.mux.dev/x36xhzz/x36xhzz.m3u8",
-          format: "hls",
-          subtitles: [],
-        };
-      }
-    }
+    if (!source)
+      return {
+        status: "unavailable",
+        message: "No verified playable source was found for this title.",
+        checkedAt,
+      };
 
-    source.subtitles = (source.subtitles || []).filter((t) => {
+    // Deliver only permitted subtitle tracks through the same signed HTTPS
+    // endpoint; HTTP subtitle URLs are blocked by modern HTTPS browsers.
+    source.subtitles = (source.subtitles || []).flatMap((t) => {
       try {
         allowedUrl(t.url, true);
-        return true;
+        return [{
+          ...t,
+          url: signedStreamUrl(t.url, id, season, episode),
+        }];
       } catch {
-        return false;
+        return [];
       }
     });
 
@@ -561,7 +535,7 @@ export async function resolvePlayback(
       message: "",
       ...source,
       checkedAt,
-      ...(process.env.PINFLIX_DOWNLOADS_AUTHORIZED !== "false" &&
+      ...(process.env.PINFLIX_DOWNLOADS_AUTHORIZED === "true" &&
       source.format === "mp4"
         ? {
             download: {
@@ -590,7 +564,7 @@ export async function getCineplexCookies(
   const cached = cookieCache.get(key);
   if (cached && cached.expires > Date.now()) return cached.cookies;
   const pid = id ? id.replace(/^(series|movie)-/, "") : "10527";
-  const p = `/watch.php?series_id=${pid}&season=${season}&ep=${episode}`;
+  const p = `/watch.php?id=${pid}&season=${season}&ep=${episode}`;
   try {
     const res = await safeFetch(ORIGIN + p, {
       headers: { "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)" },

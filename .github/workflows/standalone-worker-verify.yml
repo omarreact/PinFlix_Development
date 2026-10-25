@@ -1,0 +1,28 @@
+name: Verify standalone PinFlix Worker
+on:
+  push:
+    branches: [standalone-cloudflare]
+    paths:
+      - 'worker/**'
+      - '.github/workflows/standalone-worker-verify.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Validate standalone worker syntax
+        run: node --check worker/index.mjs
+      - name: Exercise standalone catalogue and player API with mock provider
+        run: node --test tests/standalone-worker.test.mjs
+      - name: Confirm provider restrictions and no bundled catalog
+        shell: bash
+        run: |
+          set -euo pipefail
+          grep -Fq 'http://cineplexbd.net' worker/index.mjs
+          grep -Fq 'http://cds3.cineplexbd.net' worker/index.mjs
+          grep -Fq 'http://vod.cineplexbd.net:8081' worker/index.mjs
+          grep -Fq 'adminUsed:false' worker/index.mjs
+          ! grep -qE 'commondatastorage.googleapis.com|test-streams.mux.dev|movie-78597' worker/index.mjs

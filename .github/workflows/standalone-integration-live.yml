@@ -1,0 +1,60 @@
+name: PinFlix standalone — live gateway verification
+on:
+  push:
+    branches: [standalone-cloudflare]
+    paths:
+      - ".github/workflows/standalone-integration-live.yml"
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  live:
+    runs-on: ubuntu-latest
+    timeout-minutes: 4
+    steps:
+      - name: Probe Worker, existing gateway catalogue, and playback bytes
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          import urllib.request,urllib.parse,urllib.error,json
+          base="https://pinflix-standalone.farukkhanone.workers.dev"
+          headers={"User-Agent":"Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
+             "Accept":"text/html,application/json;q=0.9,*/*;q=0.8","Accept-Language":"en-US,en;q=0.9","Sec-Fetch-Mode":"navigate"}
+          def call(path,lim=500,range=None,timeout=38):
+              h=dict(headers)
+              if range:h["Range"]=range
+              req=urllib.request.Request(base+path,headers=h)
+              try:
+                  with urllib.request.urlopen(req,timeout=timeout) as r:
+                      blob=r.read(lim);return {"http":r.status,"ctype":r.headers.get("content-type"),"length":r.headers.get("content-length"),"range":r.headers.get("content-range")},blob
+              except urllib.error.HTTPError as e:
+                  return {"http":e.code,"error":e.read(320).decode("utf8","replace")},b""
+              except Exception as e:return {"error":str(e)[:170]},b""
+          # Compare origin routing to distinguish a missing PHP API from edge blocking.
+          origin="http://pinflix.akogs-fashion.com"
+          for route in ["/","/api.php?action=health","/api.php?action=catalogue&kind=movie&page=1"]:
+              req=urllib.request.Request(origin+route,headers=headers)
+              try:
+                  with urllib.request.urlopen(req,timeout=12) as upstream:
+                      text=upstream.read(230)
+                      print("ORIGIN",route,{"http":upstream.status,"type":upstream.headers.get("content-type"),"prefix":text[:95].decode("utf8","replace")})
+              except urllib.error.HTTPError as err:
+                  print("ORIGIN",route,{"http":err.code,"error":err.read(120).decode("utf8","replace")})
+              except Exception as err:
+                  print("ORIGIN",route,{"error":str(err)[:140]})
+          for kind in ["movie","series"]:
+              status,body=call("/api/catalogue?kind="+kind+"&page=1",lim=250000)
+              try:
+                  j=json.loads(body); print("CATALOGUE",kind,{"transport":status,"count":len(j.get("items",[])),"provider":j.get("provider"),"mayBeSnapshot":j.get("mayBeSnapshot"),"firstTitle":j.get("items",[{}])[0].get("title") if j.get("items") else None})
+              except:print("CATALOGUE",kind,status,body[:300].decode("utf8","replace"))
+          for label,path in [("movie","/api/playback?kind=movie&id=78597"),("tv","/api/playback?kind=series&id=31416&season=1&episode=1")]:
+              status,body=call(path,lim=8000)
+              try:
+                  d=json.loads(body)
+                  print("PLAYBACK",label,{"transport":status,"status":d.get("status"),"format":d.get("format"),"via":d.get("via"),"message":d.get("message")})
+                  u=d.get("url","")
+                  if u.startswith("/api/media?u="):
+                      st,sample=call(u,lim=300,range="bytes=0-299" if d.get("format")=="mp4" else None)
+                      print("MEDIA",label,{"transport":st,"bytes":len(sample),"is_manifest":sample.startswith(b"#EXTM3U"),"mp4_ftyp":b"ftyp" in sample[:60]})
+              except:print("PLAYBACK",label,status,body[:300].decode("utf8","replace"))
+          PY

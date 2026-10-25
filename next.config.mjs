@@ -1,7 +1,22 @@
+import { networkInterfaces } from "node:os";
+
+// Allow the host machine's actual private LAN IPv4 addresses during development.
+// This avoids hardcoding one person's IP, without trusting arbitrary internet hosts.
+const localNetworkOrigins = Object.values(networkInterfaces())
+  .flat()
+  .filter((entry) => entry && entry.family === "IPv4" && !entry.internal)
+  .map((entry) => entry.address)
+  .filter((ip) =>
+    /^10\./.test(ip) ||
+    /^192\.168\./.test(ip) ||
+    /^172\.(1[6-9]|2\d|3[01])\./.test(ip),
+  );
+
 const config = {
   trailingSlash: true,
   poweredByHeader: false,
   reactStrictMode: true,
+  allowedDevOrigins: ["localhost", "127.0.0.1", ...localNetworkOrigins],
   serverExternalPackages: ["cheerio"],
   async redirects() {
     return [
@@ -27,7 +42,7 @@ const config = {
           {
             key: "Content-Security-Policy",
             value:
-              "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: http://cineplexbd.net https://cineplexbd.net https://image.tmdb.org https://*.aoneroom.com https://aoneroom.com https://*.hakunaymatata.com; media-src 'self' blob: data: http://cineplexbd.net https://cineplexbd.net http://vod.cineplexbd.net:8081 http://103.136.200.124:8086 http://103.136.200.124:8081 https://*.hakunaymatata.com https://hakunaymatata.com https://*.aoneroom.com https://aoneroom.com https://movibox.net https://*.movibox.net https://commondatastorage.googleapis.com https://test-streams.mux.dev https://*.cloudflarestream.com https://cloudflarestream.com; connect-src 'self' http://cineplexbd.net https://cineplexbd.net http://vod.cineplexbd.net:8081 http://103.136.200.124:8086 http://103.136.200.124:8081 https://*.hakunaymatata.com https://hakunaymatata.com https://*.aoneroom.com https://aoneroom.com https://movibox.net https://*.movibox.net https://commondatastorage.googleapis.com https://test-streams.mux.dev https://*.cloudflarestream.com https://cloudflarestream.com https://image.tmdb.org; worker-src 'self' blob:; frame-src 'none'; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'",
+              "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; media-src 'self' blob:; connect-src 'self'; worker-src 'self' blob:; frame-src 'none'; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'",
           },
         ],
       },

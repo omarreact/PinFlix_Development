@@ -6,9 +6,11 @@
     "node": "24.x"
   },
   "scripts": {
-    "dev": "next dev",
+    "dev": "next dev --hostname 0.0.0.0",
+    "setup:lan": "node scripts/setup-lan.cjs",
     "build": "next build",
-    "start": "next start",
+    "prestart": "node scripts/ensure-build.cjs",
+    "start": "next start --hostname 0.0.0.0",
     "typecheck": "tsc --noEmit",
     "lint": "eslint .",
     "test": "node --import tsx --test tests/*.test.ts",

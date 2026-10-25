@@ -16,18 +16,7 @@ export function allowedUrl(value: string, media = false): URL {
     (media && host === "vod.cineplexbd.net" && u.port === "8081") ||
     (media &&
       host === "103.136.200.124" &&
-      (u.port === "8086" || u.port === "8081")) ||
-    (media &&
-      (host === "commondatastorage.googleapis.com" ||
-        host === "test-streams.mux.dev" ||
-        host.endsWith(".cloudflarestream.com") ||
-        host === "cloudflarestream.com" ||
-        host.endsWith(".hakunaymatata.com") ||
-        host === "hakunaymatata.com" ||
-        host.endsWith(".aoneroom.com") ||
-        host === "aoneroom.com" ||
-        host === "movibox.net" ||
-        host.endsWith(".movibox.net")));
+      (u.port === "8086" || u.port === "8081"));
   if (
     !allowed ||
     u.username ||
@@ -57,6 +46,12 @@ export function publicAddress(ip: string): boolean {
   if (ip.startsWith("::ffff:")) return publicAddress(ip.slice(7));
   return isIP(ip) === 6 && !/^(::|f[cd]|fe[89ab])/i.test(ip);
 }
+export function requestTimeoutMs(media = false): number {
+  const configured = Number(process.env.CINEPLEX_REQUEST_TIMEOUT_MS);
+  return Number.isFinite(configured) && configured >= 1000 && configured <= 30000
+    ? Math.floor(configured)
+    : media ? 8000 : 4500;
+}
 export async function safeFetch(
   value: string,
   options: RequestInit = {},
@@ -67,16 +62,26 @@ export async function safeFetch(
     const records = await lookup(u.hostname, { all: true });
     if (!records.length || records.some((r) => !publicAddress(r.address)))
       throw new ProviderError("restricted_destination", 403);
-    const res = await fetch(u, {
+    // The timeout controls response headers only: don't abort an active media stream.
+    const controller = new AbortController();
+    const deadline = setTimeout(() => controller.abort(), requestTimeoutMs(media));
+    let res: Response;
+    try {
+      res = await fetch(u, {
       ...options,
       redirect: "manual",
-      signal: options.signal || AbortSignal.timeout(media ? 8000 : 2500),
+      signal: options.signal
+        ? AbortSignal.any([options.signal, controller.signal])
+        : controller.signal,
       cache: "no-store",
       headers: {
         Accept: "text/html,application/json,application/vnd.apple.mpegurl,*/*",
         ...options.headers,
       },
     });
+    } finally {
+      clearTimeout(deadline);
+    }
     if (res.status >= 300 && res.status < 400) {
       await res.body?.cancel();
       const location = res.headers.get("location");
