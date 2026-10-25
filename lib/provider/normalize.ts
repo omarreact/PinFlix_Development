@@ -169,7 +169,7 @@ const SearchSchema = z.object({
 });
 export function searchFromJson(json: unknown): Title[] {
   return dedupe(
-    SearchSchema.parse(json).results.flatMap((x) => {
+    SearchSchema.parse(Array.isArray(json) ? { results: json } : json).results.flatMap((x) => {
       const poster =
         x.poster && !x.poster.includes("/")
           ? `https://image.tmdb.org/t/p/w500/${x.poster}`
@@ -254,17 +254,38 @@ export function detailFromHtml(
             .next("p")
             .text(),
         );
-  const seasons = $('select[name="season"] option')
-    .toArray()
-    .map((el) => Number($(el).attr("value")))
-    .filter((n) => n > 0 && n < 1000);
-  const episodes: Episode[] = $(".ep-card")
-    .toArray()
+  const seasons = [...new Set(
+    $("select option")
+      .toArray()
+      .filter((el) => /season\s*\d+/i.test($(el).text()) ||
+        $(el).parent("select").attr("name") === "season")
+      .map((el) => Number($(el).attr("value")))
+      .filter((n) => n > 0 && n < 1000),
+  )];
+  const episodeCards = $(".ep-card").length
+    ? $(".ep-card").toArray()
+    : $('a[href*="watch.php"]').toArray().filter((el) => {
+        try {
+          const u = new URL($(el).attr("href")!, ORIGIN);
+          return u.hostname === "cineplexbd.net" &&
+            (u.searchParams.get("id") || u.searchParams.get("series_id")) === providerId &&
+            Number(u.searchParams.get("season") || season) === season &&
+            /^\d+$/.test(u.searchParams.get("ep") || "");
+        } catch {
+          return false;
+        }
+      });
+  const episodes: Episode[] = episodeCards
     .map((el) => {
       const a = $(el);
-      const number = Number(a.attr("data-ep"));
+      const number = Number(
+        a.attr("data-ep") ||
+        new URL(a.attr("href") || "/", ORIGIN).searchParams.get("ep"),
+      );
       const name =
-        clean(a.find("span.truncate").first().text()) || `Episode ${number}`;
+        clean(a.find("span.truncate").first().text()) ||
+        clean(a.text()).replace(/^E\d+\s*/i, "") ||
+        `Episode ${number}`;
       return {
         number,
         season,
