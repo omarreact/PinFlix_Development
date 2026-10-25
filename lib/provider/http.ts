@@ -16,18 +16,7 @@ export function allowedUrl(value: string, media = false): URL {
     (media && host === "vod.cineplexbd.net" && u.port === "8081") ||
     (media &&
       host === "103.136.200.124" &&
-      (u.port === "8086" || u.port === "8081")) ||
-    (media &&
-      (host === "commondatastorage.googleapis.com" ||
-        host === "test-streams.mux.dev" ||
-        host.endsWith(".cloudflarestream.com") ||
-        host === "cloudflarestream.com" ||
-        host.endsWith(".hakunaymatata.com") ||
-        host === "hakunaymatata.com" ||
-        host.endsWith(".aoneroom.com") ||
-        host === "aoneroom.com" ||
-        host === "movibox.net" ||
-        host.endsWith(".movibox.net")));
+      (u.port === "8086" || u.port === "8081"));
   if (
     !allowed ||
     u.username ||
