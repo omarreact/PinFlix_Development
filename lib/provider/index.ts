@@ -528,7 +528,7 @@ export async function resolvePlayback(
             true,
           ).catch(() => null);
           const ct = check?.headers.get("content-type") || "";
-          if ((!check || check.ok) && !ct.includes("text/html")) {
+          if (check?.ok && !ct.includes("text/html")) {
             source = {
               ...parsed,
               url: signedStreamUrl(parsed.url, id, season, episode),
