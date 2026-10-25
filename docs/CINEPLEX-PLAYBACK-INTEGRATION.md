@@ -1,46 +1,73 @@
-# CineplexBD playback integration: audit-driven fixes
+# CineplexBD-only playback implementation
 
-Updated: 2026-10-25  
-Target: local Windows machine on `localhost:3000` / `192.168.1.10:3000` (LAN). Changes are proposed through PR #8; **no public production promotion**.
+Updated: October 26, 2026
 
-## Implemented in this branch
+## Zero-configuration use
 
-- Watch episode resolver uses `watch.php?id=...&season=...&ep=...` (not `series_id` or a fragment-only episode).
-- Search JSON parser accepts an array or `{results: [...]}`. Existing server-side `search_ajax.php` fallback remains.
-- Series detail scraper recognizes season dropdowns and episode links without legacy `.ep-card` classes.
-- The playback rights gate now fails closed unless `CINEPLEX_PLAYBACK_AUTHORIZED=true`.
-- The optional streaming relay additionally requires `PINFLIX_MEDIA_PROXY_ENABLED=true` and a server-only `MEDIA_PROXY_SECRET` of at least 32 characters. Relay URLs are HMAC-signed, tied to content/episode/source, and expire after 6 hours.
-- HLS master/media segments and URI-bearing playlist lines are individually re-signed.
-- Missing movie/series sources report "unavailable", never an unrelated sample clip; test-media injection has been removed.
-- Downloads require separate `PINFLIX_DOWNLOADS_AUTHORIZED=true`.
-- Upstream request timeout is configurable with `CINEPLEX_REQUEST_TIMEOUT_MS` (1000–30000 ms, default 4500 for metadata).
+Clone the repository, run `npm install`, then `npm run dev` or
+`npm start` (the latter builds automatically when no production build exists).
+The application supports CineplexBD metadata, movie source resolution and TV
+episode selection without `.env.local`, API keys, Firebase or a user-supplied
+media proxy secret.
 
-## Environment settings
+The default browser player uses same-origin MP4/HLS relay requests to the
+Node.js host. This allows supported devices to use the same client regardless
+of whether their browser handles cross-origin HTTP video URLs directly.
 
-| Variable | Default | Usage |
-|---|---|---|
-| CINEPLEX_REQUEST_TIMEOUT_MS | 4500 | Bound server-side fetch calls |
-| CINEPLEX_PLAYBACK_AUTHORIZED | false | Only true after rights/embedding approval |
-| PINFLIX_MEDIA_PROXY_ENABLED | false | Extra explicit streaming relay approval |
-| MEDIA_PROXY_SECRET | unset | Private HMAC signing key, 32+ characters |
-| PINFLIX_DOWNLOADS_AUTHORIZED | false | Separate download rights |
-| PINFLIX_OFFLINE_CATALOGUE | false | CineplexBD-derived metadata snapshot only; no alternate video source |
+The relay is **not an open proxy**: source URLs are validated against a
+narrow CineplexBD media host allowlist and stream requests require expiring
+HMAC signatures. An automatically generated 32-byte server-side key is
+stored in `.next/cache/pinflix-local-media-key` on the local host. It is not
+committed to Git and never sent to the browser.
 
-Never add `NEXT_PUBLIC_` to the signing secret. The existence of a media URL does **not** prove redistribution rights. Explicit flags indicate that the operator has verified those rights; they do not constitute legal permission by themselves.
+**Deployment caveat:** On multiple independent servers, requests may reach
+different instances. Configure the same optional `MEDIA_PROXY_SECRET` on
+every instance for consistent URL verification. Single-PC installs need no
+manual setting. Public hosting also needs appropriate rate limits, HTTPS,
+firewall and content permissions.
 
-## External source observations, not deployment guarantees
+## Source handling
 
-- A direct MP4 URL under `http://103.136.200.124:8086/...` was seen for DeSu7 (ID 79203). The saved player HTML sets it through JavaScript `videoSrc` and includes a **time-sensitive query token**; never hardcode or publish the full signed media address. It also supplies an external VTT caption file. Public access, streaming rights, cross-origin compatibility, Range support, and Vercel reachability were **not** established.
-- The newly supplied saved Loki (series ID 10527) watch HTML contains a relative HLS `<source>` under `/hls/t/Others%20Dubbed%20Series/.../master.m3u8` for Season 1 Episode 6 (a second saved view shows Episode 1). This is a **playlist URL in HTML**, not proof that its segments currently load or can legally be embedded elsewhere. The earlier live browser page showed a playback error, and Season 2 availability still needs verification.
-- An uploaded CineplexBD search-page HTML snapshot showed `search_ajax.php` and card links. Whether the endpoint responds from the local PC, and permission to reuse its catalog, remain unverified.
-- If the origin is reachable only over BDIX or certain Bangladeshi ISPs, the host PC must be on a working permitted network. Local hosting avoids remote Vercel connectivity issues, but does not grant rights.
-- No DRM/cookie restriction bypass or arbitrary third-party video rehosting is implemented or authorized by this change.
+- Search: CineplexBD `search.php` and `search_ajax.php` JSON responses.
+- Movie: metadata via `view.php?id=...`; playable URL from
+  `player.php?id=...`, often its JavaScript `videoSrc` value.
+- TV: metadata, seasons, episodes and HLS playlists from
+  `watch.php?id=...&season=...&ep=...`.
+- Video: the CineplexBD origin and its specifically identified MP4/HLS
+  media hosts only; no external video fixtures, promotional reels or sample
+  substitutions.
+- HLS: all child variants, segments and URIs are rewritten to signed
+  same-origin URLs. MP4 seeking forwards the browser's Range header.
+- Captions: allowed CineplexBD VTT captions are relayed through the
+  signed endpoint.
+- An upstream `HEAD` request is not required for a movie URL to be offered:
+  CineplexBD media hosts may reject HEAD while accepting GET. Playback still
+  depends on the actual media GET succeeding.
 
-## Release verification
+## Optional operational controls
 
-1. Run `npm ci && npm run typecheck && npm run lint && npm test && npm run build`.
-2. On `http://localhost:3000`, `/api/playback/?id=movie-79203` should report `authorization_required` without the rights flag.
-3. `/api/stream/?id=movie-79203&url=https://example.com/video.mp4` must reject unsigned calls with HTTP 403.
-4. Test `/api/suggest/?q=loki` and verify whether results are live or cached; avoid treating offline snapshot content as live inventory.
-5. Only with written permission and an authorized test fixture, verify actual media requests, seeking/ranges, mobile playback, and season/episode accuracy.
-6. No public Vercel deployment is needed for local-network usage. See [LOCAL-CINEPLEXBD-LAN.md](LOCAL-CINEPLEXBD-LAN.md).
+- `PINFLIX_PLAYBACK_DISABLED=true` disables playback deliberately.
+- `PINFLIX_MEDIA_PROXY_DISABLED=true` disables same-origin relay.
+- `PINFLIX_DOWNLOADS_AUTHORIZED=true` separately enables download UI/route
+  for permitted content.
+- `PINFLIX_MATURE_ENABLED=true` enables mature catalogue sections.
+- `CINEPLEX_REQUEST_TIMEOUT_MS` sets request timeout within 1000–30000ms.
+
+Legacy flags `CINEPLEX_PLAYBACK_AUTHORIZED` and
+`PINFLIX_MEDIA_PROXY_ENABLED` are not needed by a fresh clone.
+A custom `MEDIA_PROXY_SECRET` is **optional** unless the deployment uses
+multiple independently running instances.
+
+## Verification
+
+Run `npm run typecheck`, `npm run lint`, `npm test` and
+`npm run build`; the GitHub provider-audit workflow runs all four.
+
+The `/api/playback/?id=series-10527&season=1&episode=6` route should
+resolve a signed source when the provider page supplies one. A `ready`
+response confirms source parsing, not successful video decoding.
+
+Availability still depends on live CineplexBD responses, expiring provider
+tokens, host/network reachability, browser support and permitted access.
+Hosting the app locally or publicly does not grant additional rights to
+provider content. PinFlix does not bypass provider DRM or access controls.
