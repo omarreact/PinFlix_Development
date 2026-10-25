@@ -7,54 +7,47 @@ import { resolve, join } from "node:path";
 
 const setup = resolve(process.cwd(), "scripts/setup-lan.cjs");
 function settings(dir: string) {
+  const data = readFileSync(join(dir, ".env.local"), "utf8");
   return Object.fromEntries(
-    readFileSync(join(dir, ".env.local"), "utf8")
-      .split(/\r?\n/)
-      .filter((line) => /^[A-Z][A-Z0-9_]*=/.test(line))
-      .map((line) => {
-        const pos = line.indexOf("=");
-        return [line.slice(0, pos), line.slice(pos + 1)];
-      }),
+    data.split(/\r?\n/).filter((line) => /^[A-Z][A-Z0-9_]*=/.test(line))
+      .map((line) => line.split(/=(.*)/s).slice(0, 2)),
   );
 }
 
-test("LAN setup migrates the user's working ZIP configuration without leaking secrets", () => {
+test("optional LAN helper preserves the user's working ZIP settings without a secret", () => {
   const dir = mkdtempSync(join(tmpdir(), "pinflix-lan-"));
   try {
-    writeFileSync(join(dir, ".env.example"), "CINEPLEX_PLAYBACK_AUTHORIZED=false\nPINFLIX_MEDIA_PROXY_ENABLED=false\n");
     writeFileSync(join(dir, ".env.local"),
       "CINEPLEX_PLAYBACK_AUTHORIZED=true\nPINFLIX_DOWNLOADS_AUTHORIZED=true\nPINFLIX_MATURE_ENABLED=true\n");
-    const result = execFileSync(process.execPath, [setup], { cwd: dir, encoding: "utf8" });
+    execFileSync(process.execPath, [setup], { cwd: dir });
     const parsed = settings(dir);
-    assert.equal(parsed.CINEPLEX_PLAYBACK_AUTHORIZED, "true");
-    assert.equal(parsed.PINFLIX_MEDIA_PROXY_ENABLED, "true");
+    assert.equal(parsed.PINFLIX_PLAYBACK_DISABLED, "false");
+    assert.equal(parsed.PINFLIX_MEDIA_PROXY_DISABLED, "false");
     assert.equal(parsed.PINFLIX_DOWNLOADS_AUTHORIZED, "true");
     assert.equal(parsed.PINFLIX_MATURE_ENABLED, "true");
-    assert.match(parsed.MEDIA_PROXY_SECRET, /^[a-f0-9]{64}$/);
-    assert.ok(!result.includes(parsed.MEDIA_PROXY_SECRET), "secret must not appear in console output");
-    execFileSync(process.execPath, [setup], { cwd: dir });
-    assert.equal(settings(dir).MEDIA_PROXY_SECRET, parsed.MEDIA_PROXY_SECRET, "rerun preserves secret");
+    assert.equal(parsed.MEDIA_PROXY_SECRET, undefined, "manual key is not required");
     execFileSync(process.execPath, [setup, "--disable-playback"], { cwd: dir });
     const disabled = settings(dir);
-    assert.equal(disabled.CINEPLEX_PLAYBACK_AUTHORIZED, "false");
-    assert.equal(disabled.PINFLIX_MEDIA_PROXY_ENABLED, "false");
+    assert.equal(disabled.PINFLIX_PLAYBACK_DISABLED, "true");
+    assert.equal(disabled.PINFLIX_MEDIA_PROXY_DISABLED, "true");
     assert.equal(disabled.PINFLIX_DOWNLOADS_AUTHORIZED, "false");
+    execFileSync(process.execPath, [setup, "--enable-playback"], { cwd: dir });
+    const enabled = settings(dir);
+    assert.equal(enabled.PINFLIX_PLAYBACK_DISABLED, "false");
+    assert.equal(enabled.PINFLIX_MEDIA_PROXY_DISABLED, "false");
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }
 });
 
-test("fresh LAN setup fails closed unless explicitly enabled", () => {
+test("optional LAN helper works without a pre-existing environment file", () => {
   const dir = mkdtempSync(join(tmpdir(), "pinflix-lan-"));
   try {
-    writeFileSync(join(dir, ".env.example"), "CINEPLEX_PLAYBACK_AUTHORIZED=false\n");
     execFileSync(process.execPath, [setup], { cwd: dir });
-    assert.equal(settings(dir).CINEPLEX_PLAYBACK_AUTHORIZED, "false");
-    execFileSync(process.execPath, [setup, "--enable-playback"], { cwd: dir });
     const active = settings(dir);
-    assert.equal(active.CINEPLEX_PLAYBACK_AUTHORIZED, "true");
-    assert.equal(active.PINFLIX_MEDIA_PROXY_ENABLED, "true");
-    assert.match(active.MEDIA_PROXY_SECRET, /^[a-f0-9]{64}$/);
+    assert.equal(active.PINFLIX_PLAYBACK_DISABLED, "false");
+    assert.equal(active.PINFLIX_MEDIA_PROXY_DISABLED, "false");
+    assert.equal(active.MEDIA_PROXY_SECRET, undefined);
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }
