@@ -17,13 +17,6 @@ export function imageUrl(value: string | undefined | null): string | null {
       /^\/uploads\/[^?#]+\.(?:jpg|jpeg|webp|png)$/i.test(u.pathname)
     )
       return u.href;
-    if (
-      u.hostname === "image.tmdb.org" &&
-      u.protocol === "https:" &&
-      !u.port &&
-      u.pathname.startsWith("/t/p/")
-    )
-      return u.href;
     return null;
   } catch {
     return null;
@@ -170,10 +163,9 @@ const SearchSchema = z.object({
 export function searchFromJson(json: unknown): Title[] {
   return dedupe(
     SearchSchema.parse(Array.isArray(json) ? { results: json } : json).results.flatMap((x) => {
-      const poster =
-        x.poster && !x.poster.includes("/")
-          ? `https://image.tmdb.org/t/p/w500/${x.poster}`
-          : x.poster;
+      // Bare upstream poster filenames are not necessarily CineplexBD uploads.
+      // Keep them unavailable rather than invent a third-party image origin.
+      const poster = x.poster && x.poster.includes("/") ? x.poster : null;
       const t = TitleSchema.safeParse({
         id: `${x.type}-${x.id}`,
         providerId: String(x.id),
