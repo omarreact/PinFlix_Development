@@ -54,7 +54,7 @@ test("normalizes actual native search response and preserves editions", () => {
   });
   assert.equal(items[0].id, "movie-40571");
   assert.equal(items[0].year, 2010);
-  assert.match(items[0].poster!, /^https:\/\/image.tmdb.org/);
+  assert.equal(items[0].poster, null);
   assert.equal(dedupe([...items, items[0]]).length, 2);
 });
 test("rejects malformed external JSON", () =>
@@ -156,22 +156,23 @@ test("playback gate never exposes a source without authorization", async () => {
     else process.env.PINFLIX_TEST_MEDIA = previousTest;
   }
 });
-test("test media mode resolves authorized sample video streams", async () => {
-  const previous = process.env.PINFLIX_TEST_MEDIA;
-  process.env.PINFLIX_TEST_MEDIA = "true";
+test("development sample mode does not inject unrelated video", async () => {
+  const previous = process.env.CINEPLEX_PLAYBACK_AUTHORIZED;
+  const previousTest = process.env.PINFLIX_TEST_MEDIA;
   try {
-    const moviePlayback = await resolvePlayback("movie-77533");
-    assert.equal(moviePlayback.status, "ready");
-    assert.equal(moviePlayback.format, "mp4");
-    assert.match(moviePlayback.url!, /^https:\/\//);
-
-    const seriesPlayback = await resolvePlayback("series-31416", 1, 1);
-    assert.equal(seriesPlayback.status, "ready");
-    assert.equal(seriesPlayback.format, "hls");
-    assert.match(seriesPlayback.url!, /^https:\/\//);
+    delete process.env.CINEPLEX_PLAYBACK_AUTHORIZED;
+    process.env.PINFLIX_TEST_MEDIA = "true";
+    const movie = await resolvePlayback("movie-77533");
+    const series = await resolvePlayback("series-31416", 1, 1);
+    assert.equal(movie.status, "authorization_required");
+    assert.equal(series.status, "authorization_required");
+    assert.equal(movie.url, undefined);
+    assert.equal(series.url, undefined);
   } finally {
-    if (previous === undefined) delete process.env.PINFLIX_TEST_MEDIA;
-    else process.env.PINFLIX_TEST_MEDIA = previous;
+    if (previous === undefined) delete process.env.CINEPLEX_PLAYBACK_AUTHORIZED;
+    else process.env.CINEPLEX_PLAYBACK_AUTHORIZED = previous;
+    if (previousTest === undefined) delete process.env.PINFLIX_TEST_MEDIA;
+    else process.env.PINFLIX_TEST_MEDIA = previousTest;
   }
 });
 
@@ -290,4 +291,22 @@ test("parses actual movie JavaScript player and TV HLS markup shapes", () => {
   );
   assert.equal(tv?.format, "hls");
   assert.equal(tv?.url, "http://cineplexbd.net/hls/t/Series/Loki%20S1E6.mp4/master.m3u8");
+});
+
+test("CineplexBD is the only permitted video and image source", () => {
+  for (const source of [
+    "https://test-streams.mux.dev/sample.m3u8",
+    "https://commondatastorage.googleapis.com/example.mp4",
+    "https://cloudflarestream.com/video.mp4",
+    "https://movibox.net/video.m3u8",
+  ]) assert.throws(() => allowedUrl(source, true));
+  assert.equal(
+    allowedUrl("http://cineplexbd.net/hls/t/series/master.m3u8", true).hostname,
+    "cineplexbd.net",
+  );
+  assert.equal(
+    allowedUrl("http://103.136.200.124:8086/Movies/example.mp4", true).hostname,
+    "103.136.200.124",
+  );
+  assert.equal(imageUrl("https://image.tmdb.org/t/p/w500/poster.jpg"), null);
 });
