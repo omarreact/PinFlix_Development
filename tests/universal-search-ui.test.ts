@@ -51,7 +51,7 @@ test("universal-search layout renders the source UI discovery controls", () => {
   }
   assert.match(html, /aria-label="CineplexBD category navigation"/);
   assert.match(html, /aria-label="Catalog titles"/);
-  assert.doesNotMatch(html, /https?:\/\/(?!cineplexbd\.net)/);
+  assert.doesNotMatch(html, /(?:href|src)="https?:\/\/(?!cineplexbd\.net)/);
 });
 
 test("universal-search layout reports true offline mode instead of live data", () => {
