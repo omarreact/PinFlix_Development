@@ -29,7 +29,11 @@ jobs:
           distribution: temurin
           java-version: '17'
       - name: Install Android platform
-        run: sdkmanager --install 'platforms;android-35' 'build-tools;35.0.0'
+        run: |
+          tool=$(find "${ANDROID_HOME:-/usr/local/lib/android/sdk}/cmdline-tools" -type f -name sdkmanager | sort -V | tail -n 1)
+          test -n "$tool"
+          yes | "$tool" --licenses >/dev/null || true
+          "$tool" --install 'platforms;android-35' 'build-tools;35.0.0'
       - name: Gradle 8.13
         uses: gradle/actions/setup-gradle@v4
         with:
