@@ -1,0 +1,46 @@
+{
+  "name": "pinflix-desktop",
+  "productName": "PinFlix",
+  "version": "1.0.0",
+  "description": "PinFlix desktop application for Windows",
+  "private": true,
+  "license": "UNLICENSED",
+  "main": "main.cjs",
+  "scripts": {
+    "start": "electron .",
+    "check": "node --check main.cjs && node --check scripts/create-icon.cjs && node scripts/create-icon.cjs",
+    "dist:win": "node scripts/create-icon.cjs && electron-builder --win nsis --x64 --publish never"
+  },
+  "devDependencies": {
+    "electron": "45.0.0",
+    "electron-builder": "26.18.0"
+  },
+  "build": {
+    "appId": "com.pincodeit.pinflix",
+    "productName": "PinFlix",
+    "copyright": "Copyright PINCODE IT",
+    "asar": true,
+    "directories": {
+      "output": "dist"
+    },
+    "files": [
+      "main.cjs",
+      "offline.html",
+      "package.json",
+      "assets/icon.ico"
+    ],
+    "win": {
+      "target": [
+        "nsis"
+      ],
+      "icon": "assets/icon.ico"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true
+    },
+    "artifactName": "PinFlix-${version}-Windows-Setup.${ext}"
+  }
+}
