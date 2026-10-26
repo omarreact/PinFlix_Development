@@ -90,7 +90,7 @@ public final class ProviderClient {
     }
 
     private static String enc(String value) {
-        return URLEncoder.encode(value, StandardCharsets.UTF_8);
+        return Uri.encode(value);
     }
 
     public static String providerId(Item item) {
@@ -316,7 +316,7 @@ public final class ProviderClient {
     }
 
     public static List<Item> category(String kind, String name, int page) throws Exception {
-        if (name == null || name.isBlank()) return catalogue(kind, page, "");
+        if (name == null || name.trim().isEmpty()) return catalogue(kind, page, "");
         String path = "series".equals(kind) ? "/tcategory.php?category=" : "/category.php?category=";
         return fromHtml(text(path + enc(name) + "&page=" + Math.max(1, page)));
     }
@@ -329,7 +329,7 @@ public final class ProviderClient {
             Uri uri = Uri.parse(link.absUrl("href"));
             if (allowedApi(uri) && path.equals(uri.getPath())) {
                 String name = uri.getQueryParameter("category");
-                if (name != null && !name.isBlank() && !mature(name)) items.add(name);
+                if (name != null && !name.trim().isEmpty() && !mature(name)) items.add(name);
             }
         }
         return new ArrayList<>(items);
@@ -356,7 +356,7 @@ public final class ProviderClient {
         d.description = overview == null ? "" : overview.text().trim();
         Element h1 = doc.selectFirst("h1");
         String realName = h1 == null ? "" : h1.ownText().trim();
-        if (!realName.isBlank()) d.item = new Item(item.id, item.kind, realName, item.image, item.category, item.year);
+        if (!realName.trim().isEmpty()) d.item = new Item(item.id, item.kind, realName, item.image, item.category, item.year);
 
         if (!"series".equals(item.kind)) return d;
         Set<Integer> seasons = new HashSet<>();
@@ -366,14 +366,14 @@ public final class ProviderClient {
         }
         for (Element card : doc.select(".ep-card, a[href*=watch.php]")) {
             String number = card.attr("data-ep");
-            if (number.isBlank()) {
+            if (number.trim().isEmpty()) {
                 try { number = Uri.parse(card.absUrl("href")).getQueryParameter("ep"); }
                 catch (Exception ignored) {}
             }
             if (number == null || !number.matches("[0-9]+")) continue;
             int num = Integer.parseInt(number);
             String label = card.text().trim();
-            if (label.isBlank()) label = "Episode " + num;
+            if (label.trim().isEmpty()) label = "Episode " + num;
             Element img = card.selectFirst("img");
             String poster = img == null ? "" : image(img.attr("src"));
             addEpisode(d, new Episode(num, label, poster, ""));
@@ -381,7 +381,7 @@ public final class ProviderClient {
         try {
             JSONObject meta = new JSONObject(text(path + "&meta=1"));
             String synopsis = meta.optString("synopsis", "");
-            if (!synopsis.isBlank()) d.description = synopsis;
+            if (!synopsis.trim().isEmpty()) d.description = synopsis;
             JSONObject eps = meta.optJSONObject("episodes");
             if (eps != null) {
                 java.util.Iterator<String> keys = eps.keys();
@@ -411,7 +411,7 @@ public final class ProviderClient {
         for (int i = 0; i < detail.episodes.size(); i++) {
             Episode old = detail.episodes.get(i);
             if (old.number == episode.number) {
-                if (!episode.path.isBlank() || old.title.startsWith("E"))
+                if (!episode.path.trim().isEmpty() || old.title.startsWith("E"))
                     detail.episodes.set(i, episode);
                 return;
             }
@@ -429,11 +429,11 @@ public final class ProviderClient {
         Document doc = Jsoup.parse(html, BASE);
         Element source = doc.selectFirst("video source[src], video[src], source[src]");
         String raw = source == null ? "" : source.attr("src");
-        if (raw.isBlank()) {
+        if (raw.trim().isEmpty()) {
             Matcher matcher = MEDIA_ASSIGNMENT.matcher(html);
             if (matcher.find()) raw = matcher.group(1);
         }
-        if (raw.isBlank() && "series".equals(item.kind)) {
+        if (raw.trim().isEmpty() && "series".equals(item.kind)) {
             try {
                 JSONObject json = new JSONObject(text("/watch.php?id=" + id + "&season=" +
                     Math.max(1, season) + "&meta=1"));
@@ -444,7 +444,7 @@ public final class ProviderClient {
                 }
             } catch (Exception ignored) {}
         }
-        if (raw.isBlank()) throw new Exception("No playable media source supplied by the provider");
+        if (raw.trim().isEmpty()) throw new Exception("No playable media source supplied by the provider");
         raw = raw.replace("\\/", "/").replace("\\u002F", "/");
         String mediaBase = raw.matches("(?i)^/?Data/.*")
             ? "http://103.136.200.124:8086/"
