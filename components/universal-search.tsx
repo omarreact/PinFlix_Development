@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import {
-  ArrowLeft, ArrowRight, Bookmark, CheckCircle2, ChevronDown, ChevronLeft,
+  ArrowRight, Bookmark, CheckCircle2, ChevronDown, ChevronLeft,
   ChevronRight, CircleHelp, Clapperboard, Film, Grid2X2, List, Menu,
   Play, Search, SlidersHorizontal, Sparkles, Tv, Wifi, WifiOff, X
 } from "lucide-react";
@@ -191,8 +191,6 @@ export function UniversalSearch({
   useEffect(() => {
     if (!selected) return;
     const controller = new AbortController();
-    setSelectedDetail(null);
-    setDetailError(false);
     void fetch(api("/detail?id=" + encodeURIComponent(selected.id) + "&season=" + selectedSeason), {
       signal: controller.signal
     })
@@ -410,7 +408,7 @@ export function UniversalSearch({
             {filtered.map((t) => (
               <button key={t.id} type="button" className="unv-poster-card"
                 aria-label={"View " + t.title}
-                onClick={() => { setSelected(t); setSelectedSeason(1); }}>
+                onClick={() => { setSelectedDetail(null); setDetailError(false); setSelected(t); setSelectedSeason(1); }}>
                 <div className="unv-poster">
                   <Artwork src={t.poster} alt={t.title} />
                   <span className="unv-poster-shade" />
@@ -490,7 +488,7 @@ export function UniversalSearch({
                   <h3>Seasons &amp; episodes</h3>
                   <label>Season
                     <select value={selectedSeason}
-                      onChange={(e) => setSelectedSeason(Number(e.target.value))}>
+                      onChange={(e) => { setSelectedDetail(null); setDetailError(false); setSelectedSeason(Number(e.target.value)); }}>
                       {(selectedDetail?.title.seasons.length ? selectedDetail.title.seasons :
                         [selectedSeason]).map((season) =>
                         <option key={season} value={season}>Season {season}</option>)}
