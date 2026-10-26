@@ -43,6 +43,7 @@ const links = [
 ];
 export function Shell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
+  const explorer = /^\/(?:search|movies|series)?\/?$/.test(pathname);
   const router = useRouter();
   const { user, preferences, logout } = useAccount();
   const [open, setOpen] = useState(false);
@@ -159,7 +160,7 @@ export function Shell({ children }: { children: React.ReactNode }) {
         Skip to content
       </a>
       <header
-        className={`header ${pathname === "/" && !scrolled ? "header-transparent" : "header-solid"}`}
+        className={`header ${pathname === "/" && !scrolled ? "header-transparent" : "header-solid"} ${explorer ? "explorer-hide" : ""}`}
       >
         <Link href="/" aria-label="PinFlix home">
           <Brand />
@@ -261,8 +262,8 @@ export function Shell({ children }: { children: React.ReactNode }) {
           </button>
         </div>
       </header>
-      <main id="content"><div className="ambient-backdrop" aria-hidden="true" />{children}</main>
-      <footer className="footer">
+      <main id="content" className={explorer ? "main-explorer" : undefined}><div className="ambient-backdrop" aria-hidden="true" />{children}</main>
+      <footer className={`footer ${explorer ? "explorer-hide" : ""}`}>
         <div className="footer-main">
           <div className="footer-brand">
             <Link href="/" aria-label="PinFlix home">
@@ -312,7 +313,7 @@ export function Shell({ children }: { children: React.ReactNode }) {
           <span>Made for the love of stories.</span>
         </div>
       </footer>
-      <nav className="bottom-nav" aria-label="Quick navigation">
+      <nav className={`bottom-nav ${explorer ? "explorer-hide" : ""}`} aria-label="Quick navigation">
         {[
           ["/", "Home", Home],
           ["/movies", "Movies", Film],
