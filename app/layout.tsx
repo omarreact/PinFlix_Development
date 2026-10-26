@@ -5,6 +5,7 @@ import { PlaybackProvider } from "@/components/playback-context";
 import { LibrarySyncProvider } from "@/components/library-sync";
 import { spotlightInter, spotlightMarker, spotlightSyne } from "@/lib/fonts";
 import "./globals.css";
+import "./universal.css";
 export const metadata: Metadata = {
   title: { default: "PinFlix — A world of stories", template: "%s · PinFlix" },
   description:
