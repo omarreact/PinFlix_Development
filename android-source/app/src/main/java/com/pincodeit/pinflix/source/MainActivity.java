@@ -223,9 +223,8 @@ public class MainActivity extends Activity {
             page = 1;
         }
         progress.setVisibility(View.VISIBLE);
-        content.removeViews(3, content.getChildCount() - 3); // retain search row, gap, tabs? see below
-        if (content.getChildCount() > 3) content.removeViews(3, content.getChildCount() - 3);
-        content.addView(section(activeQuery.isBlank() ?
+        clearBelowSearch();
+        content.addView(section(activeQuery.trim().isEmpty() ?
             ("series".equals(activeKind) ? "Explore TV Series" : "Explore Movies") : "Search results"));
         TextView wait = text("Loading CineplexBD catalogue…", 14, muted, false);
         wait.setPadding(dp(4), dp(12), 0, dp(12));
@@ -252,9 +251,9 @@ public class MainActivity extends Activity {
                     busy = false;
                     progress.setVisibility(View.GONE);
                     if (reset) categoryLabels = finalCategories;
-                    if ("series".equals(requestedKind) && !requestedQuery.isBlank()) {
+                    if ("series".equals(requestedKind) && !requestedQuery.trim().isEmpty()) {
                         newItems.removeIf(i -> !"series".equals(i.kind));
-                    } else if ("movie".equals(requestedKind) && requestedQuery.isBlank()) {
+                    } else if ("movie".equals(requestedKind) && requestedQuery.trim().isEmpty()) {
                         newItems.removeIf(i -> !"movie".equals(i.kind));
                     }
                     for (ProviderClient.Item i : newItems) {
@@ -319,7 +318,7 @@ public class MainActivity extends Activity {
     private void renderResults(boolean canLoadMore) {
         clearBelowSearch();
         renderCategories();
-        content.addView(section(activeQuery.isBlank() ?
+        content.addView(section(activeQuery.trim().isEmpty() ?
             ("series".equals(activeKind) ? "TV Series" : "Movies") : "Search results"));
         if (results.isEmpty()) {
             TextView empty = text("No titles found. Try another search or network.", 15, muted, false);
@@ -371,7 +370,7 @@ public class MainActivity extends Activity {
     }
 
     private void setPoster(ImageView view, String url) {
-        if (url == null || url.isBlank()) return;
+        if (url == null || url.trim().isEmpty()) return;
         Bitmap cached = posters.get(url);
         if (cached != null) { view.setImageBitmap(cached); return; }
         view.setTag(url);
@@ -438,7 +437,7 @@ public class MainActivity extends Activity {
             ("series".equals(item.kind) ? "TV Series" : "Movie");
         content.addView(text(meta, 14, accent, true));
         space(content, 14);
-        if (!detail.description.isBlank()) {
+        if (!detail.description.trim().isEmpty()) {
             content.addView(text(detail.description, 15, muted, false));
             space(content, 18);
         }
