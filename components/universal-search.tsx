@@ -324,7 +324,12 @@ export function UniversalSearch({
                 </select>
               </label>
               <label>Category
-                <select value={filters.category} onChange={(e) => setFilter("category", e.target.value)}>
+                <select value={filters.category} onChange={(e) => {
+                  const name = e.target.value;
+                  const category = data.categories.find((item) => item.name === name && !item.mature);
+                  if (category) setKind(category.kind);
+                  setFilter("category", name);
+                }}>
                   <option value="">All categories</option>
                   {(kind === "series" ? seriesCategories : kind === "movie" ? movieCategories :
                     [...movieCategories, ...seriesCategories]).map((c) =>
