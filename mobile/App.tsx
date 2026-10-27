@@ -1,11 +1,13 @@
 import React,{useCallback,useEffect,useState} from "react";
 import {ActivityIndicator,Alert,Dimensions,FlatList,Image,ImageBackground,Platform,Pressable,ScrollView,StatusBar,StyleSheet,Switch,Text,TextInput,View} from "react-native";
+import type {ImageStyle,StyleProp} from "react-native";
 import {LinearGradient} from "expo-linear-gradient";
 import {SafeAreaProvider,SafeAreaView} from "react-native-safe-area-context";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import {C,CREDIT} from "./src/theme";
 import type {Title,Detail,Catalogue,Progress} from "./src/types";
-import {catalogue,detail,artworkUrl} from "./src/api";
+import {catalogue,detail} from "./src/api";
+import {loadPoster} from "./src/poster";
 import {hydrate,read,watch,toggleSaved,preference,clearHistory,Library} from "./src/library";
 import PlayerScreen from "./src/PlayerScreen";
 import {enableAlerts,disableAlerts} from "./src/notifications";
@@ -14,17 +16,20 @@ import {track} from "./src/telemetry";
 
 type Tab="Home"|"Discover"|"Saved"|"Profile";
 const W=Dimensions.get("window").width;
-function posterSource(raw:string|null|undefined){
- const uri=artworkUrl(raw);
- return uri?{uri,...(Platform.OS==="android"?{headers:{Referer:"http://cineplexbd.net/","User-Agent":"PinFlixSources/1.0 Android"}}:{})}:undefined;
+function useArtwork(raw:string|null|undefined){
+ const [uri,setUri]=useState<string|undefined>();
+ useEffect(()=>{let active=true;setUri(undefined);void loadPoster(raw).then(value=>{if(active)setUri(value);});return()=>{active=false;};},[raw]);
+ return uri?{uri}:undefined;
 }
+function Artwork({raw,style}:{raw:string|null|undefined;style:StyleProp<ImageStyle>}){const source=useArtwork(raw);return <Image source={source} style={style}/>;}
+function ArtworkBackground({raw,children}:{raw:string|null|undefined;children:React.ReactNode}){const source=useArtwork(raw);return <ImageBackground source={source} style={S.detailsHero} imageStyle={{backgroundColor:C.panel}}>{children}</ImageBackground>;}
 function sourceError(error:unknown){
  const status=error instanceof Error?error.message.match(/HTTP\s*(\d{3})/i)?.[1]:undefined;
  return status?`The source returned HTTP ${status}. Check access on this network and try again.`:"Could not reach the catalogue. Check your connection and try again.";
 }
 function Btn({label,onPress,fill=C.purple}:{label:string;onPress:()=>void;fill?:string}){return <Pressable onPress={onPress} style={[S.button,{backgroundColor:fill}]}><Text style={S.buttonText}>{label}</Text></Pressable>;}
 function Label({text,action}:{text:string;action?:()=>void}){return <View style={S.sectionRow}><Text style={S.sectionTitle}>{text}</Text>{action&&<Text onPress={action} style={S.small}>See all</Text>}</View>;}
-function Poster({item,onPress,width=118}:{item:Title;onPress:()=>void;width?:number}){return <Pressable style={{width,marginRight:11}} onPress={onPress}><Image source={posterSource(item.poster)} style={{width,height:width*1.48,borderRadius:13,backgroundColor:C.panel}}/><Text numberOfLines={2} style={S.posterTitle}>{item.title}</Text><Text style={S.caption}>{item.year||"Movie"} · {item.kind==="series"?"Series":"Film"}</Text></Pressable>;}
+function Poster({item,onPress,width=118}:{item:Title;onPress:()=>void;width?:number}){return <Pressable style={{width,marginRight:11}} onPress={onPress}><Artwork raw={item.poster} style={{width,height:width*1.48,borderRadius:13,backgroundColor:C.panel}}/><Text numberOfLines={2} style={S.posterTitle}>{item.title}</Text><Text style={S.caption}>{item.year||"Movie"} · {item.kind==="series"?"Series":"Film"}</Text></Pressable>;}
 function Rail({titles,onSelect}:{titles:Title[];onSelect:(t:Title)=>void}){return <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{marginHorizontal:-17}} contentContainerStyle={{paddingHorizontal:17}}>{titles.map(i=><Poster key={i.id} item={i} onPress={()=>onSelect(i)}/>)}</ScrollView>;}
 
 function AppBody(){
@@ -89,7 +94,7 @@ function AppBody(){
 
  if(intro)return <View style={S.welcome}>
   <StatusBar hidden/>
-  <View style={S.collage}>{movies.slice(0,9).map((title,i)=><Image key={title.id} source={posterSource(title.poster)} style={[S.collageImage,{transform:[{rotate:i%2?"7deg":"-6deg"}]}]}/>)}</View>
+  <View style={S.collage}>{movies.slice(0,9).map((title,i)=><Artwork key={title.id} raw={title.poster} style={[S.collageImage,{transform:[{rotate:i%2?"7deg":"-6deg"}]}]}/>)}</View>
   <LinearGradient colors={["#00000000","#090714","#080716"]} style={StyleSheet.absoluteFill}/>
   <View style={S.welcomeBottom}><Text style={S.welcomeTitle}>Welcome to PinFlix</Text><Text style={S.welcomeText}>Movies, series and stories worth discovering.</Text><Text style={S.credit}>{CREDIT}</Text>
    <Btn label="Get Started" onPress={()=>{setIntro(false);void AsyncStorage.setItem("pinflix-intro-done","1");}}/>
@@ -97,11 +102,11 @@ function AppBody(){
  </View>;
 
  if(selected)return <SafeAreaView style={{flex:1,backgroundColor:C.bg}}><StatusBar barStyle="light-content"/><ScrollView>
-  <ImageBackground source={posterSource(selected.backdrop||selected.poster)} style={S.detailsHero} imageStyle={{backgroundColor:C.panel}}>
+  <ArtworkBackground raw={selected.backdrop||selected.poster}>
    <LinearGradient colors={["#00000011","#090917"]} style={StyleSheet.absoluteFill}/>
    <View style={S.detailTop}><Btn label="‹" fill="#5B4A80" onPress={closeDetail}/><Btn label={library.saved[selected.id]?"♥":"♡"} fill="#5B4A80" onPress={()=>void toggleSaved(selected)}/></View>
    <View style={S.playFloating}><Btn label="▶" fill={C.purple} onPress={()=>play(selected)}/></View>
-  </ImageBackground>
+  </ArtworkBackground>
   <View style={{padding:18}}><Text style={S.caption}>{selected.year||"Featured"}  ·  {selected.kind==="series"?"TV Series":"Movie"}</Text><Text style={S.detailTitle}>{selected.title}</Text>
    <View style={S.pills}><Text style={S.pill}>{selected.category||"Entertainment"}</Text>{selected.quality&&<Text style={S.pill}>{selected.quality}</Text>}<Text style={S.pill}>{selected.language||"Original"}</Text></View>
    <View style={[S.pills,{marginTop:19}]}><Btn label={selected.kind==="series"?"▶ Watch episode":"▶ Play Movie"} onPress={()=>play(selected,1,data?.episodes[0]?.number||1)}/><Btn label={library.saved[selected.id]?"Saved ✓":"+ Watch Later"} fill={C.panel} onPress={()=>void toggleSaved(selected)}/></View>
@@ -121,7 +126,7 @@ function AppBody(){
    </ScrollView>
    {loading&&<ActivityIndicator color={C.purple}/>}
    {!!error&&<Text style={S.sub}>{error}</Text>}
-   {!!active&&<><ScrollView horizontal pagingEnabled showsHorizontalScrollIndicator={false} onMomentumScrollEnd={ev=>setFeatured(Math.round(ev.nativeEvent.contentOffset.x/(W-34)))}>{source.slice(0,8).map(i=><Pressable onPress={()=>void open(i)} key={i.id} style={[S.bigPoster,{width:W-34}]}><Image source={posterSource(i.poster)} style={S.heroArt}/><LinearGradient colors={["transparent","#130A33"]} style={StyleSheet.absoluteFill}/><Text style={S.heroTitle} numberOfLines={2}>{i.title}</Text></Pressable>)}</ScrollView>
+   {!!active&&<><ScrollView horizontal pagingEnabled showsHorizontalScrollIndicator={false} onMomentumScrollEnd={ev=>setFeatured(Math.round(ev.nativeEvent.contentOffset.x/(W-34)))}>{source.slice(0,8).map(i=><Pressable onPress={()=>void open(i)} key={i.id} style={[S.bigPoster,{width:W-34}]}><Artwork raw={i.poster} style={S.heroArt}/><LinearGradient colors={["transparent","#130A33"]} style={StyleSheet.absoluteFill}/><Text style={S.heroTitle} numberOfLines={2}>{i.title}</Text></Pressable>)}</ScrollView>
     <Text style={S.featureYear}>{active.year||""}</Text><Text style={S.featureTitle}>{active.title}</Text><Text style={S.featureMeta}>{active.category||"Featured"}   ◇   {active.kind==="series"?"Series":"Movie"}</Text><Text style={S.dots}>●  ●  ●  ●  ●</Text>
    </>}
    <Label text="For You" action={()=>setTab("Discover")}/><Rail titles={movies.slice(0,18)} onSelect={x=>void open(x)}/>

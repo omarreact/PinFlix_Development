@@ -1,6 +1,8 @@
 package com.pincodeit.pinflix.source;
 
 import android.net.Uri;
+import android.graphics.Bitmap;
+import android.util.Base64;
 import android.util.Log;
 import androidx.annotation.NonNull;
 import com.facebook.react.bridge.Arguments;
@@ -11,6 +13,7 @@ import com.facebook.react.bridge.ReactMethod;
 import com.facebook.react.bridge.WritableArray;
 import com.facebook.react.bridge.WritableMap;
 import java.util.ArrayList;
+import java.io.ByteArrayOutputStream;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.LinkedHashMap;
@@ -182,6 +185,17 @@ public final class PinFlixDirectModule extends ReactContextBaseJavaModule {
             out.putMap("headers",headers);
             out.putArray("subtitles",Arguments.createArray());
             return out;
+        });
+    }
+
+    @ReactMethod public void poster(String url,Promise promise){
+        async(promise,()->{
+            Bitmap bitmap=ProviderClient.poster(url);
+            if(bitmap==null)throw new Exception("Artwork unavailable");
+            try(ByteArrayOutputStream bytes=new ByteArrayOutputStream()){
+                if(!bitmap.compress(Bitmap.CompressFormat.JPEG,82,bytes))throw new Exception("Artwork could not be decoded");
+                return "data:image/jpeg;base64,"+Base64.encodeToString(bytes.toByteArray(),Base64.NO_WRAP);
+            }finally{bitmap.recycle();}
         });
     }
 
