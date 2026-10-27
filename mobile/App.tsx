@@ -1,5 +1,5 @@
 import React,{useCallback,useEffect,useState} from "react";
-import {ActivityIndicator,Alert,Dimensions,FlatList,Image,ImageBackground,Pressable,ScrollView,StatusBar,StyleSheet,Switch,Text,TextInput,View} from "react-native";
+import {ActivityIndicator,Alert,Dimensions,FlatList,Image,ImageBackground,Platform,Pressable,ScrollView,StatusBar,StyleSheet,Switch,Text,TextInput,View} from "react-native";
 import {LinearGradient} from "expo-linear-gradient";
 import {SafeAreaProvider,SafeAreaView} from "react-native-safe-area-context";
 import AsyncStorage from "@react-native-async-storage/async-storage";
@@ -139,8 +139,8 @@ function AppBody(){
    <Label text="Playback"/>
    {([["autoNext","Auto-play next episode"],["background","Background playback"],["intro","Play PinFlix intro"],["repeat","Repeat current video"]] as const).map(([key,label])=><View key={key} style={S.setting}><Text style={S.episodeTitle}>{label}</Text><Switch value={Boolean(library.preferences[key])} onValueChange={v=>void preference(key,v)} trackColor={{true:C.purple}}/></View>)}
    <Label text="Notifications & Privacy"/>
-   <View style={S.setting}><Text style={S.episodeTitle}>New-release notifications</Text><Switch value={library.preferences.notifications} onValueChange={async v=>{if(!v){void disableAlerts();return;}try{const ok=await enableAlerts();if(!ok)Alert.alert("Notifications","Permission was not granted.");}catch{Alert.alert("Setup required","Push alerts require cloud credentials and an active notification service.");}}}/></View>
-   <View style={S.setting}><Text style={S.episodeTitle}>Anonymous usage analytics</Text><Switch value={library.preferences.telemetry} onValueChange={v=>void preference("telemetry",v)}/></View>
+   {Platform.OS!=="android"&&<View style={S.setting}><Text style={S.episodeTitle}>New-release notifications</Text><Switch value={library.preferences.notifications} onValueChange={async v=>{if(!v){void disableAlerts();return;}try{const ok=await enableAlerts();if(!ok)Alert.alert("Notifications","Permission was not granted.");}catch{Alert.alert("Setup required","Push alerts require cloud credentials and an active notification service.");}}}/></View>}
+   {Platform.OS==="android" ? <Text style={S.sub}>Standalone Android edition: no external analytics collection or cloud notifications. All watch history stays on this device.</Text> : <View style={S.setting}><Text style={S.episodeTitle}>Anonymous usage analytics</Text><Switch value={library.preferences.telemetry} onValueChange={v=>void preference("telemetry",v)}/></View>}
    <Text style={S.sub}>Region: {library.preferences.region}. Location is optional. Precise coordinates are never stored or sent to analytics.</Text>
    <View style={{marginTop:12}}><Btn label="Use location once for regional suggestions" fill={C.panel} onPress={async()=>{
      try{
