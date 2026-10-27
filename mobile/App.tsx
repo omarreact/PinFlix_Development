@@ -8,7 +8,7 @@ import type {Title,Detail,Catalogue,Progress} from "./src/types";
 import {catalogue,detail} from "./src/api";
 import {hydrate,read,watch,toggleSaved,preference,clearHistory,Library} from "./src/library";
 import PlayerScreen from "./src/PlayerScreen";
-import {enableAlerts} from "./src/notifications";
+import {enableAlerts,disableAlerts} from "./src/notifications";
 import {track} from "./src/telemetry";
 
 type Tab="Home"|"Discover"|"Saved"|"Profile";
@@ -138,7 +138,7 @@ function AppBody(){
    <Label text="Playback"/>
    {([["autoNext","Auto-play next episode"],["background","Background playback"],["intro","Play PinFlix intro"],["repeat","Repeat current video"]] as const).map(([key,label])=><View key={key} style={S.setting}><Text style={S.episodeTitle}>{label}</Text><Switch value={Boolean(library.preferences[key])} onValueChange={v=>void preference(key,v)} trackColor={{true:C.purple}}/></View>)}
    <Label text="Notifications & Privacy"/>
-   <View style={S.setting}><Text style={S.episodeTitle}>New-release notifications</Text><Switch value={library.preferences.notifications} onValueChange={async v=>{if(!v){void preference("notifications",false);return;}try{const ok=await enableAlerts();if(!ok)Alert.alert("Notifications","Permission was not granted.");}catch{Alert.alert("Setup required","Push alerts require cloud credentials and an active notification service.");}}}/></View>
+   <View style={S.setting}><Text style={S.episodeTitle}>New-release notifications</Text><Switch value={library.preferences.notifications} onValueChange={async v=>{if(!v){void disableAlerts();return;}try{const ok=await enableAlerts();if(!ok)Alert.alert("Notifications","Permission was not granted.");}catch{Alert.alert("Setup required","Push alerts require cloud credentials and an active notification service.");}}}/></View>
    <View style={S.setting}><Text style={S.episodeTitle}>Anonymous usage analytics</Text><Switch value={library.preferences.telemetry} onValueChange={v=>void preference("telemetry",v)}/></View>
    <Text style={S.sub}>Location is never required. Your watchlist and resume history are stored on this device.</Text>
    <View style={{marginTop:20}}><Btn label="Clear watch history" fill={C.panel} onPress={()=>Alert.alert("Clear history?","Saved titles will remain.",[{text:"Cancel"},{text:"Clear",style:"destructive",onPress:()=>void clearHistory()}])}/></View>
