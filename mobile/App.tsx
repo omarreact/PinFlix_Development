@@ -105,7 +105,7 @@ function AppBody(){
  return <SafeAreaView style={S.root}>
   <StatusBar backgroundColor={C.bg} barStyle="light-content"/>
   {tab==="Home"&&<ScrollView contentContainerStyle={S.content} showsVerticalScrollIndicator={false}>
-   <View style={S.header}><Text style={S.logo}>Pin<Text style={{color:C.magenta}}>Flix</Text></Text><Text style={S.small}>● Live catalogue</Text></View>
+   <View style={S.header}><View style={{flexDirection:"row",alignItems:"center",gap:9}}><Image source={require("./assets/icon.png")} style={{width:36,height:36,borderRadius:9}}/><Text style={S.logo}>Pin<Text style={{color:C.magenta}}>Flix</Text></Text></View><Text style={S.small}>● Live catalogue</Text></View>
    <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{marginBottom:15}}>
     {["Trending","New","Movies","Series"].map(x=><Text key={x} onPress={()=>{setKind(x==="Series"?"series":"movie");setFeatured(0);}} style={[S.headerTab,(kind==="series"?"Series":"Trending")===x&&{color:C.white,fontWeight:"800"}]}>{x}</Text>)}
    </ScrollView>
