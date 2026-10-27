@@ -33,10 +33,11 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicInteger;
 
 public class MainActivity extends Activity {
-    private final int background = Color.rgb(10, 15, 30);
-    private final int panelColor = Color.rgb(23, 31, 51);
-    private final int muted = Color.rgb(167, 181, 205);
-    private final int accent = Color.rgb(103, 232, 249);
+    private final int background = Color.rgb(10, 14, 25);
+    private final int panelColor = Color.rgb(24, 31, 49);
+    private final int muted = Color.rgb(162, 176, 198);
+    private final int accent = Color.rgb(149, 166, 255);
+    private final int aqua = Color.rgb(106, 224, 218);
 
     private final ExecutorService workers = Executors.newFixedThreadPool(5);
     private final AtomicInteger requestNumber = new AtomicInteger();
@@ -68,6 +69,7 @@ public class MainActivity extends Activity {
         GradientDrawable d = new GradientDrawable();
         d.setColor(color);
         d.setCornerRadius(dp(radius));
+        if (color == panelColor) d.setStroke(dp(1), 0xFF2B3650);
         return d;
     }
     private TextView text(String message, float sp, int color, boolean bold) {
@@ -105,12 +107,15 @@ public class MainActivity extends Activity {
         b.setTextSize(13);
         b.setTextColor(active ? background : Color.WHITE);
         b.setBackgroundTintList(ColorStateList.valueOf(active ? accent : panelColor));
+        b.setElevation(0);
+        b.setMinHeight(0);
+        b.setMinimumHeight(0);
         b.setOnClickListener(action);
         return b;
     }
     private TextView section(String name) {
         TextView t = text(name, 22, Color.WHITE, true);
-        t.setPadding(dp(1), dp(3), 0, dp(10));
+        t.setPadding(dp(1), dp(7), 0, dp(14));
         return t;
     }
     private void initializeRoot() {
@@ -124,15 +129,18 @@ public class MainActivity extends Activity {
         scroll.setVerticalScrollBarEnabled(false);
         root.addView(scroll, new LinearLayout.LayoutParams(-1, 0, 1));
         content = vertical();
-        content.setPadding(dp(15), dp(10), dp(15), dp(28));
+        content.setPadding(dp(15), dp(12), dp(15), dp(26));
         scroll.addView(content);
     }
     private void header(String subtitle) {
         LinearLayout bar = horizontal();
-        bar.setPadding(dp(17), dp(12), dp(17), dp(10));
-        bar.setBackgroundColor(background);
+        bar.setPadding(dp(18), dp(16), dp(18), dp(13));
+        bar.setBackground(new GradientDrawable(
+            GradientDrawable.Orientation.LEFT_RIGHT,
+            new int[] { 0xFF161C31, 0xFF0D1423 }));
         LinearLayout labels = vertical();
-        TextView logo = text("PinFlix", 29, Color.WHITE, true);
+        TextView logo = text("PinFlix", 30, Color.WHITE, true);
+        logo.setLetterSpacing(-0.04f);
         labels.addView(logo);
         TextView sub = text(subtitle, 11, accent, true);
         labels.addView(sub);
@@ -158,7 +166,7 @@ public class MainActivity extends Activity {
     private void showCatalogueShell() {
         showingDetails = false;
         initializeRoot();
-        header("SOURCE EDITION  •  CINEPLEXBD");
+        header("SOURCES  •  NATIVE ANDROID");
         addScrollContent();
 
         LinearLayout searchRow = horizontal();
@@ -167,9 +175,9 @@ public class MainActivity extends Activity {
         search.setHintTextColor(muted);
         search.setTextSize(15);
         search.setSingleLine(true);
-        search.setHint("Search movies & TV shows");
+        search.setHint("⌕  Search movies, series, years…");
         search.setPadding(dp(15), dp(6), dp(8), dp(6));
-        search.setBackground(bg(panelColor, 13));
+        search.setBackground(bg(panelColor, 15));
         search.setImeOptions(EditorInfo.IME_ACTION_SEARCH);
         search.setText(activeQuery);
         search.setOnEditorActionListener((v, action, event) -> {
@@ -177,7 +185,7 @@ public class MainActivity extends Activity {
             return false;
         });
         searchRow.addView(search, new LinearLayout.LayoutParams(0, dp(51), 1));
-        Button go = button("Search", true, v -> startSearch());
+        Button go = button("Go", true, v -> startSearch());
         searchRow.addView(go, margin(dp(93), dp(51), 9, 0, 0, 0));
         content.addView(searchRow);
         space(content, 16);
@@ -191,6 +199,39 @@ public class MainActivity extends Activity {
         seriesParams.width = 0; seriesParams.weight = 1; series.setLayoutParams(seriesParams);
         content.addView(tabs);
         space(content, 15);
+        addBottomNav();
+    }
+
+    private void addBottomNav() {
+        LinearLayout nav = horizontal();
+        nav.setPadding(dp(10), dp(5), dp(10), dp(8));
+        nav.setBackground(new GradientDrawable(GradientDrawable.Orientation.TOP_BOTTOM,
+            new int[] {0xFF1B2338, 0xFF11182A}));
+        TextView home = navItem("⌂  Explore", activeQuery.isEmpty(), () -> {
+            activeQuery = "";
+            activeCategory = "";
+            showCatalogueShell();
+            loadPage(true);
+        });
+        TextView movies = navItem("▣  Movies", "movie".equals(activeKind), () -> switchKind("movie"));
+        TextView series = navItem("▤  Series", "series".equals(activeKind), () -> switchKind("series"));
+        TextView find = navItem("⌕  Find", false, () -> {
+            search.requestFocus();
+            android.view.inputmethod.InputMethodManager input =
+                (android.view.inputmethod.InputMethodManager) getSystemService(INPUT_METHOD_SERVICE);
+            if (input != null) input.showSoftInput(search, android.view.inputmethod.InputMethodManager.SHOW_IMPLICIT);
+        });
+        nav.addView(home, new LinearLayout.LayoutParams(0, dp(48), 1));
+        nav.addView(movies, new LinearLayout.LayoutParams(0, dp(48), 1));
+        nav.addView(series, new LinearLayout.LayoutParams(0, dp(48), 1));
+        nav.addView(find, new LinearLayout.LayoutParams(0, dp(48), 1));
+        root.addView(nav, new LinearLayout.LayoutParams(-1, -2));
+    }
+    private TextView navItem(String title, boolean selected, Runnable click) {
+        TextView item = text(title, 12, selected ? accent : muted, selected);
+        item.setGravity(Gravity.CENTER);
+        item.setOnClickListener(v -> click.run());
+        return item;
     }
 
     private void startSearch() {
@@ -315,42 +356,93 @@ public class MainActivity extends Activity {
         loadPage(true);
     }
 
+
+    private FrameLayout featureCard(ProviderClient.Item item) {
+        FrameLayout hero = new FrameLayout(this);
+        hero.setBackground(bg(panelColor, 20));
+        hero.setClipToOutline(true);
+        ImageView photo = new ImageView(this);
+        photo.setScaleType(ImageView.ScaleType.CENTER_CROP);
+        hero.addView(photo, new FrameLayout.LayoutParams(-1, -1));
+        setPoster(photo, item.image);
+
+        View shade = new View(this);
+        shade.setBackground(new GradientDrawable(GradientDrawable.Orientation.TOP_BOTTOM,
+            new int[]{0x330A0F19, 0xD500050E, 0xFC080D17}));
+        hero.addView(shade, new FrameLayout.LayoutParams(-1, -1));
+
+        LinearLayout overlay = vertical();
+        overlay.setPadding(dp(18), dp(20), dp(16), dp(19));
+        TextView label = text("✦  FEATURED " + ("series".equals(item.kind) ? "SERIES" : "MOVIE"), 11, aqua, true);
+        overlay.addView(label);
+        TextView name = text(item.title, 24, Color.WHITE, true);
+        name.setMaxLines(2);
+        name.setEllipsize(android.text.TextUtils.TruncateAt.END);
+        overlay.addView(name, margin(-1, -2, 0, 8, 0, 4));
+        String detail = (item.year.isEmpty() ? "" : item.year + "   •   ") +
+            ("series".equals(item.kind) ? "Episodes available" : "Discover this film");
+        overlay.addView(text(detail, 13, muted, false));
+        TextView open = text("▶   Explore title  →", 14, accent, true);
+        overlay.addView(open, margin(-1, -2, 0, 12, 0, 0));
+        hero.addView(overlay, new FrameLayout.LayoutParams(-1, -2, Gravity.BOTTOM));
+        hero.setOnClickListener(v -> openDetail(item));
+        return hero;
+    }
+
     private void renderResults(boolean canLoadMore) {
         clearBelowSearch();
-        renderCategories();
-        content.addView(section(activeQuery.trim().isEmpty() ?
-            ("series".equals(activeKind) ? "TV Series" : "Movies") : "Search results"));
         if (results.isEmpty()) {
+            content.addView(section("Nothing to show"));
             TextView empty = text("No titles found. Try another search or network.", 15, muted, false);
-            empty.setPadding(0, dp(12), 0, dp(20));
+            empty.setPadding(dp(4), dp(12), 0, dp(20));
             content.addView(empty);
             return;
         }
+        if (activeQuery.isEmpty() && activeCategory.isEmpty()) {
+            content.addView(featureCard(results.get(0)), margin(-1, dp(230), 0, 4, 0, 24));
+        }
+        renderCategories();
+        String heading = activeQuery.trim().isEmpty()
+            ? ("series".equals(activeKind) ? "Series to discover" : "Movies to explore")
+            : "Search results";
+        content.addView(section(heading));
+
         GridLayout grid = new GridLayout(this);
         grid.setColumnCount(2);
         grid.setAlignmentMode(GridLayout.ALIGN_BOUNDS);
         grid.setUseDefaultMargins(false);
-        int usableWidth = getResources().getDisplayMetrics().widthPixels - dp(40);
-        int cardWidth = Math.max(dp(130), usableWidth / 2);
+        int availablePx = getResources().getDisplayMetrics().widthPixels - dp(30);
+        int cardWidth = availablePx / 2;
         for (int i = 0; i < results.size(); i++) {
             ProviderClient.Item item = results.get(i);
             LinearLayout tile = vertical();
-            tile.setPadding(dp(3), dp(3), dp(3), dp(9));
+            tile.setPadding(dp(5), dp(3), dp(5), dp(12));
             tile.setOnClickListener(v -> openDetail(item));
+
+            FrameLayout artwork = new FrameLayout(this);
+            artwork.setBackground(bg(panelColor, 16));
+            artwork.setClipToOutline(true);
             ImageView poster = new ImageView(this);
             poster.setScaleType(ImageView.ScaleType.CENTER_CROP);
-            poster.setBackground(bg(panelColor, 13));
-            poster.setClipToOutline(true);
-            tile.addView(poster, new LinearLayout.LayoutParams(-1, dp(225)));
+            artwork.addView(poster, new FrameLayout.LayoutParams(-1, -1));
             setPoster(poster, item.image);
-            TextView title = text(item.title, 13, Color.WHITE, true);
+            TextView flag = text("series".equals(item.kind) ? "SERIES" : "FILM", 10, Color.WHITE, true);
+            flag.setPadding(dp(9), dp(4), dp(9), dp(4));
+            flag.setBackground(bg(0xE21A2440, 10));
+            FrameLayout.LayoutParams flagParams = new FrameLayout.LayoutParams(-2, -2, Gravity.TOP | Gravity.END);
+            flagParams.setMargins(0, dp(9), dp(9), 0);
+            artwork.addView(flag, flagParams);
+            tile.addView(artwork, new LinearLayout.LayoutParams(-1, dp(213)));
+
+            TextView title = text(item.title, 14, Color.WHITE, true);
             title.setMaxLines(2);
             title.setEllipsize(android.text.TextUtils.TruncateAt.END);
-            title.setPadding(dp(5), dp(9), dp(2), 0);
-            tile.addView(title, new LinearLayout.LayoutParams(-1, dp(50)));
-            String meta = (item.year.isEmpty() ? "" : item.year + "  •  ") + ("series".equals(item.kind) ? "TV SERIES" : "MOVIE");
+            title.setPadding(dp(2), dp(10), dp(2), 0);
+            tile.addView(title, new LinearLayout.LayoutParams(-1, dp(54)));
+            String meta = (item.year.isEmpty() ? "CineplexBD" : item.year) + "   •   " +
+                ("series".equals(item.kind) ? "TV" : "Movie");
             TextView sub = text(meta, 11, muted, false);
-            sub.setPadding(dp(5), 0, 0, 0);
+            sub.setPadding(dp(2), 0, 0, 0);
             tile.addView(sub);
             GridLayout.LayoutParams params = new GridLayout.LayoutParams(GridLayout.spec(i / 2), GridLayout.spec(i % 2));
             params.width = cardWidth;
@@ -359,14 +451,15 @@ public class MainActivity extends Activity {
         }
         content.addView(grid);
         if (canLoadMore && activeQuery.isEmpty()) {
-            content.addView(button("Load more from CineplexBD", false, v -> {
+            content.addView(button("Load more titles  ↓", false, v -> {
                 page++;
                 loadPage(false);
-            }), margin(-1, dp(52), 0, 20, 0, 0));
+            }), margin(-1, dp(54), 0, 16, 0, 0));
         }
-        TextView source = text("Catalogue: cineplexbd.net   •   Stream sources are validated before playback", 11, muted, false);
+        TextView source = text("All catalogue data from CineplexBD\nAvailable streams depend on your network and the provider.",
+            11, muted, false);
         source.setGravity(Gravity.CENTER);
-        content.addView(source, margin(-1, -2, 0, 22, 0, 0));
+        content.addView(source, margin(-1, -2, 0, 24, 0, 0));
     }
 
     private void setPoster(ImageView view, String url) {
@@ -427,12 +520,22 @@ public class MainActivity extends Activity {
         if (content.getChildCount() > 2)
             content.removeViews(2, content.getChildCount() - 2);
         ProviderClient.Item item = detail.item;
+        FrameLayout hero = new FrameLayout(this);
+        hero.setBackground(bg(panelColor, 18));
+        hero.setClipToOutline(true);
         ImageView art = new ImageView(this);
         art.setScaleType(ImageView.ScaleType.CENTER_CROP);
-        art.setBackground(bg(panelColor, 16));
-        art.setClipToOutline(true);
-        content.addView(art, margin(-1, dp(205), 0, 0, 0, 16));
+        hero.addView(art, new FrameLayout.LayoutParams(-1, -1));
         setPoster(art, item.image);
+        View gradient = new View(this);
+        gradient.setBackground(new GradientDrawable(GradientDrawable.Orientation.TOP_BOTTOM,
+            new int[]{0x00000000, 0xEE080E19}));
+        hero.addView(gradient, new FrameLayout.LayoutParams(-1, -1));
+        TextView titleOverlay = text(item.title, 23, Color.WHITE, true);
+        titleOverlay.setMaxLines(2);
+        titleOverlay.setPadding(dp(16), dp(12), dp(14), dp(16));
+        hero.addView(titleOverlay, new FrameLayout.LayoutParams(-1, -2, Gravity.BOTTOM));
+        content.addView(hero, margin(-1, dp(235), 0, 0, 0, 17));
         String meta = (item.year.isEmpty() ? "" : item.year + "  •  ") +
             ("series".equals(item.kind) ? "TV Series" : "Movie");
         content.addView(text(meta, 14, accent, true));
@@ -442,7 +545,7 @@ public class MainActivity extends Activity {
             space(content, 18);
         }
         if ("movie".equals(item.kind)) {
-            content.addView(button("▶ Play Movie", true, v -> launchPlayer(item, 1, 1)),
+            content.addView(button("▶  Watch movie", true, v -> launchPlayer(item, 1, 1)),
                 margin(-1, dp(55), 0, 0, 0, 10));
             return;
         }
@@ -475,7 +578,7 @@ public class MainActivity extends Activity {
             TextView label = text(episode.title, 14, Color.WHITE, true);
             label.setMaxLines(2);
             episodeRow.addView(label, new LinearLayout.LayoutParams(0, -2, 1));
-            TextView play = text("▶", 22, accent, true);
+            TextView play = text("▶  PLAY", 13, aqua, true);
             episodeRow.addView(play);
             episodeRow.setOnClickListener(v -> launchPlayer(item, season, episode.number));
             content.addView(episodeRow, margin(-1, -2, 0, 0, 0, 9));
