@@ -10,13 +10,19 @@
       },
       "ios": {
         "simulator": true
+      },
+      "env": {
+        "EXPO_PUBLIC_PINFLIX_API_ORIGIN": "https://pin-flix.pincodeit.com"
       }
     },
     "production": {
       "android": {
         "buildType": "app-bundle"
       },
-      "ios": {}
+      "ios": {},
+      "env": {
+        "EXPO_PUBLIC_PINFLIX_API_ORIGIN": "https://pin-flix.pincodeit.com"
+      }
     }
   }
 }
