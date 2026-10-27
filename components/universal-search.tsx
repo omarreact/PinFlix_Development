@@ -153,7 +153,7 @@ export function UniversalSearch({
         const result: Catalogue = await response.json();
         if (version === request.current && !controller.signal.aborted) setData(result);
       } catch {
-        if (!controller.signal.aborted) setError("Could not reach CineplexBD. Retry, or browse the saved titles.");
+        if (!controller.signal.aborted) setError("Could not reach PinFlix. Retry, or browse the saved titles.");
       } finally {
         if (!controller.signal.aborted) setBusy(false);
       }
@@ -161,7 +161,7 @@ export function UniversalSearch({
     return () => { window.clearTimeout(timer); controller.abort(); };
   }, [filters, kind, revision]);
 
-  // Continue CineplexBD's native 24-at-a-time series indexing without a bulk
+  // Continue PinFlix's native 24-at-a-time series indexing without a bulk
   // background crawl or cross-provider data.
   useEffect(() => {
     if (kind !== "series" || busy || !data.sourceIndex?.hasMore || data.offlineMode) return;
@@ -209,7 +209,7 @@ export function UniversalSearch({
   const isStale = data.stale || isOffline;
   const sourceMessage = isOffline ? "Offline catalogue enabled"
     : isStale ? "Live source unavailable"
-    : "CineplexBD catalogue connected";
+    : "PinFlix catalogue connected";
   const count = data.total ?? data.items.length;
   const movieCount = filtered.filter((t) => t.kind === "movie").length;
   const seriesCount = filtered.filter((t) => t.kind === "series").length;
@@ -223,11 +223,11 @@ export function UniversalSearch({
           onClick={() => setSidebarOpen(false)} />
       )}
       <aside className={"unv-sidebar " + (sidebarOpen ? "is-open" : "")}
-        aria-label="CineplexBD category navigation">
+        aria-label="PinFlix category navigation">
         <div className="unv-brand-row">
           <Link href="/" className="unv-brand" onClick={() => setSidebarOpen(false)}>
             <span className="unv-brand-icon"><Play size={18} fill="currentColor" /></span>
-            <span>PIN<span>FLIX</span><small>CineplexBD search</small></span>
+            <span>PIN<span>FLIX</span><small>PinFlix search</small></span>
           </Link>
           <button className="unv-close-side" aria-label="Close menu" onClick={() => setSidebarOpen(false)}>
             <X size={19} />
@@ -254,7 +254,7 @@ export function UniversalSearch({
             <span>{isStale ? "Saved catalog" : "Source connected"}</span>
             <CircleHelp size={15} />
           </button>
-          <p>Content & availability: CineplexBD</p>
+          <p>Made by PINCODE IT · Availability depends on source</p>
         </div>
       </aside>
 
@@ -262,7 +262,7 @@ export function UniversalSearch({
         <header className="unv-topbar">
           <button className="unv-hamburger" aria-label="Open navigation"
             onClick={() => setSidebarOpen(true)}><Menu size={21} /></button>
-          <span className="unv-page-name"><Clapperboard size={17} /> CineplexBD universal search</span>
+          <span className="unv-page-name"><Clapperboard size={17} /> PinFlix universal search</span>
           <div className="unv-top-actions">
             <button onClick={() => searchInput.current?.focus()} aria-label="Jump to search">
               <Search size={17} /> <span>Search</span>
@@ -278,7 +278,7 @@ export function UniversalSearch({
             <div className="unv-hero-inner">
               <span className="unv-eyebrow"><Sparkles size={15} /> {isStale ? "SAVED CINEPLEXBD CATALOG" : "EXPLORE CINEPLEXBD"}</span>
               <h1 id="unv-hero-title">One search.<br /><em>A world to watch.</em></h1>
-              <p>Discover movies, TV series, anime, documentaries and wrestling from the CineplexBD catalog.</p>
+              <p>Discover movies, TV series, anime, documentaries and wrestling from the PinFlix catalog.</p>
               <form className="unv-hero-search" role="search" onSubmit={(e) => { e.preventDefault(); setRevision((r) => r + 1); }}>
                 <Search size={21} aria-hidden="true" />
                 <input ref={searchInput} type="search" aria-label="Search the catalog"
@@ -389,9 +389,9 @@ export function UniversalSearch({
           </div>
           <div className={"unv-source-banner " + (isStale ? "is-warning" : "")}>
             {isStale ? <WifiOff size={16} /> : <CheckCircle2 size={16} />}
-            <span>{isOffline ? "Offline catalogue mode is enabled. Run npm run repair:local and restart to enable live CineplexBD results." :
-              data.stale ? "Live source unavailable. Showing saved CineplexBD titles; availability may be limited." :
-              "Showing titles indexed from CineplexBD. Availability and playback depend on the original source."}
+            <span>{isOffline ? "Offline catalogue mode is enabled. Run npm run repair:local and restart to enable live PinFlix results." :
+              data.stale ? "Live source unavailable. Showing saved PinFlix titles; availability may be limited." :
+              "Showing titles indexed from PinFlix. Availability and playback depend on the original source."}
             </span>
             <button onClick={() => setStatusOpen((v) => !v)}>Source status <ChevronDown size={14} /></button>
           </div>
@@ -400,9 +400,9 @@ export function UniversalSearch({
             <p>Last catalog response: {new Date(data.retrievedAt).toLocaleString()}.</p>
             <p>{data.sourceIndex
               ? data.sourceIndex.count + " TV series indexed; " +
-                (data.sourceIndex.hasMore ? "more CineplexBD pages may be available." : "indexing complete for now.")
-              : "Movies and TV shows are loaded from the CineplexBD catalog API."}</p>
-            <p>PinFlix does not replace missing CineplexBD videos with sample media.</p>
+                (data.sourceIndex.hasMore ? "more PinFlix pages may be available." : "indexing complete for now.")
+              : "Movies and TV shows are loaded from the PinFlix catalog API."}</p>
+            <p>PinFlix does not replace missing PinFlix videos with sample media.</p>
           </div>}
           {error && <div className="unv-error" role="alert">{error}
             <button onClick={() => setRevision((r) => r + 1)}>Try again</button>
@@ -450,7 +450,7 @@ export function UniversalSearch({
           </div>
           <footer className="unv-footer">
             <span className="unv-footer-brand">PIN<span>FLIX</span></span>
-            <p>Discover movies and series from CineplexBD. Availability depends on the source.</p>
+            <p>Discover movies and series from PinFlix. Availability depends on the source.</p>
             <button onClick={() => setStatusOpen(true)}><Wifi size={15} /> Source connection status</button>
           </footer>
         </div>
@@ -475,7 +475,7 @@ export function UniversalSearch({
                   {currentlySelected?.rating && <span>★ {currentlySelected.rating}</span>}
                 </div>
                 <p>{selectedDetail?.title.synopsis ||
-                  "Explore this title on PinFlix. Streaming availability depends on CineplexBD."}</p>
+                  "Explore this title on PinFlix. Streaming availability depends on PinFlix."}</p>
                 <div className="unv-dialog-actions">
                   <Link href={titleHref(selected) + "?resume=1&season=" + selectedSeason +
                     "&episode=" + (episodeList[0]?.number || 1)}
@@ -500,7 +500,7 @@ export function UniversalSearch({
                     </select>
                   </label>
                 </div>
-                {!selectedDetail && !detailError && <p>Loading CineplexBD episodes...</p>}
+                {!selectedDetail && !detailError && <p>Loading PinFlix episodes...</p>}
                 {detailError && <p>Episode information is unavailable. Open the full series page to retry.</p>}
                 {episodeList.slice(0, 100).map((episode) => (
                   <Link key={episode.number}
