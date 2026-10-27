@@ -221,6 +221,12 @@ public final class ProviderClient {
         return allowedImage(parsed) ? url : "";
     }
 
+    public static boolean allowedPosterUrl(String url) {
+        if(url==null||url.isEmpty())return false;
+        try{return allowedImage(Uri.parse(url));}
+        catch(Exception ignored){return false;}
+    }
+
     public static Bitmap poster(String url) {
         if (url == null || url.isEmpty()) return null;
         try {
