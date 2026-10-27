@@ -59,6 +59,36 @@ jobs:
             mobile/release-build.log
           retention-days: 14
           if-no-files-found: error
+  startup-smoke:
+    needs: build
+    runs-on: ubuntu-24.04
+    timeout-minutes: 35
+    strategy:
+      fail-fast: false
+      matrix:
+        api-level: [35, 36]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: PinFlix-Android-Direct-2.0.6-Preview
+          path: mobile/preview-apk
+      - name: Enable emulator hardware acceleration
+        run: sudo chmod 666 /dev/kvm
+      - uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: ${{ matrix.api-level }}
+          arch: x86_64
+          target: google_apis
+          script: cd mobile && python3 scripts/startup_smoke.py
+      - name: Upload startup crash traces
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: PinFlix-Startup-API-${{ matrix.api-level }}
+          path: mobile/android-startup-smoke/
+          retention-days: 30
+          if-no-files-found: warn
   device-smoke:
     needs: build
     runs-on: ubuntu-24.04
