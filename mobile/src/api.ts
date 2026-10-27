@@ -15,3 +15,14 @@ export const catalogue=(p:Record<string,string|number|boolean|undefined>)=>reque
 export const detail=(id:string,season=1)=>request<Detail>("detail",{id,season});
 export const playback=(id:string,season=1,episode=1)=>request<Playback>("playback",{id,season,episode});
 export function streamUrl(raw:string){const url=new URL(raw,API);if(url.protocol!=="https:"||url.origin!==API||!url.pathname.startsWith("/api/stream/"))throw new Error("Untrusted playback source.");return url.toString();}
+
+// HTTPS artwork relay keeps Android and iOS rendering compatible with legacy upstream images.
+export function artworkUrl(raw:string|null|undefined):string|undefined{
+ if(!raw)return undefined;
+ try{
+  const uri=new URL(raw,API);
+  if(uri.origin===API&&uri.protocol==="https:")return uri.toString();
+  if(!["http:","https:"].includes(uri.protocol)||uri.username||uri.password)return undefined;
+  return API+"/api/artwork?url="+encodeURIComponent(uri.toString());
+ }catch{return undefined;}
+}
