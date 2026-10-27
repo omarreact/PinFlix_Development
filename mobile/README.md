@@ -21,3 +21,11 @@ Before a **production cutover**: validate web, Android and iOS releases; check a
 Single-source policy: only CineplexBD and its approved media servers may supply catalogue and playback metadata. Unavailable upstream media must be reported unavailable, never replaced with MovieBox, TMDB, another catalogue, trailer, or uncontrolled cPanel fallback. Provider names must not appear in user-visible branding; `Made by PINCODE IT` is the public credit.
 
 The `pinflix.pincodeit.com` site will become the web entrypoint and offer approved Android/Apple installation links. It does not replace Android APK signatures or Apple App Store/TestFlight distribution.
+
+## Android v2.0.2 direct-source mode (no Vercel)
+
+The Android APK now bundles the **original matching Java ProviderClient.java from PinFlix Sources v1.0** and registers it as a React Native native module. On Android, `src/api.android.ts` communicates only with that module for catalogue, search, details, episode metadata and direct HLS/MP4 playback. Artwork loads directly from the approved upstream hosts. `src/playback-source.android.ts` never contacts any HTTPS PinFlix service. Cookies, user-agent, referer headers, source allowlisting and HTTP transport remain native, as in the uploaded working APK.
+
+`src/api.ts` remains the separate shared/iOS backend implementation and is shadowed by `src/api.android.ts` in Metro's Android resolution. Android telemetry and remote push are disabled rather than contacting the admin Vercel service. Watchlist and resume remain local. Location is optional and doesn't alter the video source.
+
+A new release APK requires a fresh native prebuild because the original Java parser, bridge and Jsoup dependency are injected by `plugins/withCineplexMedia.js`. Standard Expo Go **cannot run this module**. Configure EAS/Android build from this branch and verify on a physical device and network. Do not claim actual playback success based on compilation alone.
