@@ -74,7 +74,7 @@ export default function PlayerScreen({title,detail,season,episode,onClose,onNext
   <StatusBar hidden/>
   <VideoView player={player} style={StyleSheet.absoluteFill} nativeControls={false} allowsFullscreen allowsPictureInPicture contentFit={fit}/>
   <Pressable style={StyleSheet.absoluteFill} onPress={()=>setShow(!show)}/>
-  {intro&&<View style={s.intro}><Text style={s.mark}>P ▶</Text><Text style={s.brand}>PinFlix</Text><Text style={s.credit}>{CREDIT}</Text><Btn label="Skip intro" onPress={()=>setIntro(false)}/></View>}
+  {intro&&<View style={s.intro}><Image source={require("../assets/icon.png")} style={{width:116,height:116,borderRadius:23}}/><Text style={s.brand}>PinFlix</Text><Text style={s.credit}>{CREDIT}</Text><Btn label="Skip intro" onPress={()=>setIntro(false)}/></View>}
   {!!status&&!intro&&<View pointerEvents="none" style={s.center}><ActivityIndicator color={C.magenta}/><Text style={s.sub}>{status}</Text></View>}
   {!!error&&<View style={s.center}><Text style={s.error}>{error}</Text><Btn label="Back" onPress={close}/></View>}
   {locked?<View style={s.unlock}><Btn label="Unlock" onPress={()=>setLocked(false)}/></View>:show&&!intro&&!error&&<View pointerEvents="box-none" style={StyleSheet.absoluteFill}>
