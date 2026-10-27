@@ -1,5 +1,5 @@
 import React,{useEffect,useRef,useState} from "react";
-import {ActivityIndicator,Alert,BackHandler,Dimensions,Pressable,ScrollView,StatusBar,StyleSheet,Text,View} from "react-native";
+import {ActivityIndicator,Alert,BackHandler,Dimensions,Image,Pressable,ScrollView,StatusBar,StyleSheet,Text,View} from "react-native";
 import Slider from "@react-native-community/slider";
 import {useVideoPlayer,VideoView} from "expo-video";
 import * as Orientation from "expo-screen-orientation";
