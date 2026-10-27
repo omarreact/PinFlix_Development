@@ -55,7 +55,7 @@ public class MainActivity extends Activity {
     private SharedPreferences prefs;
     private LinearLayout root, page;
     private ScrollView scroll;
-    private String screen = "home", section = "Trending", query = "", category = "";
+    private String screen = "home", originScreen = "home", section = "Trending", query = "", category = "";
     private int featuredIndex = 0, discoverPage = 1;
     private boolean busy = false, moreAvailable = false;
 
@@ -613,6 +613,7 @@ public class MainActivity extends Activity {
     }
 
     private void openDetail(ProviderClient.Item item) {
+        originScreen=screen;
         screen="detail";
         final int token=requestId.incrementAndGet();
         showDetailSkeleton(item);
@@ -642,13 +643,14 @@ public class MainActivity extends Activity {
         View dim=new View(this);
         dim.setBackground(gradient(0x330B0927,0xFF17102F));
         hero.addView(dim,new FrameLayout.LayoutParams(-1,-1));
-        TextView back=action("‹",0x99342865,()->{screen="home";render();});
+        TextView back=action("‹",0x99342865,()->{screen=originScreen;render();});
         FrameLayout.LayoutParams backPos=new FrameLayout.LayoutParams(dp(45),dp(45),Gravity.TOP|Gravity.LEFT);
         backPos.setMargins(dp(17),dp(16),0,0);
         hero.addView(back,backPos);
-        TextView save=action(saved.containsKey(item.id)?"♥":"♡",0x99342865,()->{
+        TextView save=action(saved.containsKey(item.id)?"♥":"♡",0x99342865,()->{});
+        save.setOnClickListener(v->{
             toggleSaved(item);
-            showDetailSkeleton(item);
+            save.setText(saved.containsKey(item.id)?"♥":"♡");
         });
         FrameLayout.LayoutParams savePos=new FrameLayout.LayoutParams(dp(45),dp(45),Gravity.TOP|Gravity.RIGHT);
         savePos.setMargins(0,dp(16),dp(17),0);
@@ -789,7 +791,7 @@ public class MainActivity extends Activity {
 
     @Override public void onBackPressed(){
         if("detail".equals(screen)){
-            requestId.incrementAndGet();screen="home";render();
+            requestId.incrementAndGet();screen=originScreen;render();
         }else if(!"home".equals(screen)){
             navigate("home");
         }else super.onBackPressed();
