@@ -11,18 +11,14 @@
       "ios": {
         "simulator": true
       },
-      "env": {
-        "EXPO_PUBLIC_PINFLIX_API_ORIGIN": "https://pin-flix.pincodeit.com"
-      }
+      "env": {}
     },
     "production": {
       "android": {
         "buildType": "app-bundle"
       },
       "ios": {},
-      "env": {
-        "EXPO_PUBLIC_PINFLIX_API_ORIGIN": "https://pin-flix.pincodeit.com"
-      }
+      "env": {}
     }
   }
 }
