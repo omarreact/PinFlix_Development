@@ -19,4 +19,8 @@ test("the Android app never imports web API or Vercel proxy code",()=>{
  assert.match(plugin,/android:networkSecurityConfig/);
  assert.match(poster,/NativeModules\.PinFlixDirect/);
  assert.match(module,/ProviderClient\.poster\(url\)/);
+ assert.match(poster,/file:\/\//);
+ assert.doesNotMatch(module,/data:image\/jpeg;base64|Base64\.encodeToString/);
+ assert.match(module,/pinflix-posters/);
+ assert.match(module,/Bitmap\.createScaledBitmap/);
 });
