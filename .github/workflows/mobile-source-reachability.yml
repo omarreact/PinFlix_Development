@@ -1,0 +1,23 @@
+name: Probe PinFlix Android source reachability
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/mobile-source-reachability.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  probe:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - name: Probe approved catalogue origin
+        shell: bash
+        run: |
+          getent ahostsv4 cineplexbd.net | head -3 || true
+          curl --max-time 25 --max-filesize 1800000 \
+            --user-agent 'PinFlixSources/1.0 Android' \
+            --referer 'http://cineplexbd.net/' \
+            --output /tmp/pinflix-source-home \
+            --write-out 'catalogue_http=%{http_code} final_host=%{url_effective} bytes=%{size_download}\n' \
+            'http://cineplexbd.net/'
