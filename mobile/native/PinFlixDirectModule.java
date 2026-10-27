@@ -26,6 +26,7 @@ import java.util.regex.Pattern;
 
 public final class PinFlixDirectModule extends ReactContextBaseJavaModule {
     private final ExecutorService io=Executors.newFixedThreadPool(3);
+    private final ExecutorService artworkIo=Executors.newFixedThreadPool(3);
     private final Map<String, ProviderClient.Item> known=new ConcurrentHashMap<>();
     private static final Pattern ID=Pattern.compile("^(movie|series)-[0-9]{1,12}$");
 
@@ -82,7 +83,10 @@ public final class PinFlixDirectModule extends ReactContextBaseJavaModule {
         return true;
     }
     private void async(Promise p,Task task){
-        io.execute(()->{try{p.resolve(task.run());}catch(Exception e){p.reject("PINFLIX_DIRECT",e.getMessage()==null?"Source unavailable":e.getMessage(),e);}});
+        async(io,p,task);
+    }
+    private void async(ExecutorService executor,Promise p,Task task){
+        executor.execute(()->{try{p.resolve(task.run());}catch(Exception e){p.reject("PINFLIX_DIRECT",e.getMessage()==null?"Source unavailable":e.getMessage(),e);}});
     }
     private interface Task{Object run() throws Exception;}
 
@@ -189,7 +193,7 @@ public final class PinFlixDirectModule extends ReactContextBaseJavaModule {
     }
 
     @ReactMethod public void poster(String url,Promise promise){
-        async(promise,()->{
+        async(artworkIo,promise,()->{
             Bitmap bitmap=ProviderClient.poster(url);
             if(bitmap==null)throw new Exception("Artwork unavailable");
             try(ByteArrayOutputStream bytes=new ByteArrayOutputStream()){
@@ -199,5 +203,5 @@ public final class PinFlixDirectModule extends ReactContextBaseJavaModule {
         });
     }
 
-    @Override public void invalidate(){io.shutdownNow();super.invalidate();}
+    @Override public void invalidate(){io.shutdownNow();artworkIo.shutdownNow();super.invalidate();}
 }

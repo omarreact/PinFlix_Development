@@ -14,6 +14,7 @@ export function loadPoster(raw:string|null|undefined):Promise<string|undefined>{
   cache.delete(url);
   return undefined;
  });
+ if(cache.size>=80){const oldest=cache.keys().next().value;if(oldest)cache.delete(oldest);}
  cache.set(url,request);
  return request;
 }
