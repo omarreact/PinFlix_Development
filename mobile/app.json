@@ -3,7 +3,7 @@
     "name": "PinFlix",
     "slug": "pinflix-mobile",
     "scheme": "pinflix",
-    "version": "2.0.0",
+    "version": "2.0.1",
     "orientation": "default",
     "userInterfaceStyle": "dark",
     "ios": {
@@ -27,7 +27,8 @@
       "adaptiveIcon": {
         "foregroundImage": "./assets/icon.png",
         "backgroundColor": "#0A0818"
-      }
+      },
+      "versionCode": 2
     },
     "plugins": [
       [
@@ -47,7 +48,8 @@
           "isAndroidBackgroundLocationEnabled": false,
           "isAndroidForegroundServiceEnabled": false
         }
-      ]
+      ],
+      "./plugins/withCineplexMedia"
     ],
     "extra": {
       "apiOrigin": "https://pin-flix.pincodeit.com"
