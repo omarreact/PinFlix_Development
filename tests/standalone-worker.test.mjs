@@ -21,7 +21,7 @@ test("renders standalone shell with no catalogue snapshot",async()=>{
   assert.equal(r.status,200);
   const html=await r.text();
   assert.match(html,/Stories beyond/);
-  assert.match(html,/CineplexBD/);
+  assert.doesNotMatch(html,/CineplexBD/);
   assert.doesNotMatch(html,/Star Cineplex/);
 });
 test("requests movie listing live and normalizes public link",()=>withMock(async()=>{
