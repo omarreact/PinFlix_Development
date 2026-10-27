@@ -34,6 +34,12 @@ The worker is isolated from the existing PHP cPanel hosting and does not require
 
 - Standalone Worker homepage and `/api/status` returned HTTP 200 with browser-style headers. Headless/default clients were previously blocked by Cloudflare 1010.
 - Cloudflare Worker could not connect to the direct `cineplexbd.net` site, `cds3.cineplexbd.net`, or `vod.cineplexbd.net:8081`.
-- An optional fallback to the user's previously working cPanel PHP API was added without embedding its UI. However, live checks of `http://pinflix.akogs-fashion.com/api.php` and `/site/api.php` both returned HTTP 404 (including health and catalogue calls). The former source was confirmed unreachable/missing at this date.
+- The external cPanel catalogue and media gateway fallback has been removed. The Worker now returns unavailable instead of substituting an unverified source.
 - Thus the standalone frontend is deployed and application tests pass, but **live catalogue and playback do not work until a reachable authorized media API or PHP gateway is available**. The project does not fake successful streams or invent episode data.
 - The Worker does not access the VOD `/admin` dashboard.
+
+## Single source enforcement (pre-release branch)
+
+Catalogue, search, details, episodes, poster images and playback must originate only from CineplexBD's approved endpoints and approved CineplexBD-owned media servers. A previous cPanel gateway has been removed from active Worker code and must not be reintroduced.
+
+This standalone Worker is a development artifact until it passes live-network and playback checks. Its public-facing labels use PinFlix, not the origin's brand. Production cutover of `pinflix.pincodeit.com` is intentionally deferred.
