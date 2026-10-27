@@ -137,7 +137,7 @@ public class PlayerActivity extends Activity {
             fail("Invalid playback request.");
             return;
         }
-        statusText.setText("Connecting to CineplexBD…");
+        statusText.setText("Connecting to PinFlix…");
         TextView titleView = (TextView) topBar.getChildAt(1);
         titleView.setText(title + ("series".equals(kind) ? "  •  S" + season + " E" + episode : ""));
         ProviderClient.Item item = new ProviderClient.Item(rawId, kind, title, "", "", "");
@@ -314,7 +314,7 @@ public class PlayerActivity extends Activity {
         LinearLayout.LayoutParams spinnerParams = new LinearLayout.LayoutParams(dp(38), dp(38));
         spinnerParams.gravity = Gravity.CENTER_HORIZONTAL;
         loadingLayer.addView(loadingSpinner, spinnerParams);
-        statusText = text("Resolving CineplexBD stream…", 15, WHITE, false);
+        statusText = text("Resolving PinFlix stream…", 15, WHITE, false);
         statusText.setPadding(dp(6), dp(15), dp(6), 0);
         loadingLayer.addView(statusText);
     }
