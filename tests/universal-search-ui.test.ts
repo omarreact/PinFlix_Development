@@ -49,8 +49,10 @@ test("universal-search layout renders the source UI discovery controls", () => {
   ]) {
     assert.ok(html.includes(required), "Missing explorer UI control: " + required);
   }
-  assert.match(html, /aria-label="CineplexBD category navigation"/);
+  assert.match(html, /aria-label="PinFlix category navigation"/);
   assert.match(html, /aria-label="Catalog titles"/);
+  assert.doesNotMatch(html, /CineplexBD/);
+  assert.match(html,/Made by PINCODE IT/);
   assert.doesNotMatch(html, /(?:href|src)="https?:\/\/(?!cineplexbd\.net)/);
 });
 
