@@ -9,6 +9,7 @@ import {catalogue,detail} from "./src/api";
 import {hydrate,read,watch,toggleSaved,preference,clearHistory,Library} from "./src/library";
 import PlayerScreen from "./src/PlayerScreen";
 import {enableAlerts,disableAlerts} from "./src/notifications";
+import * as Location from "expo-location";
 import {track} from "./src/telemetry";
 
 type Tab="Home"|"Discover"|"Saved"|"Profile";
@@ -140,7 +141,18 @@ function AppBody(){
    <Label text="Notifications & Privacy"/>
    <View style={S.setting}><Text style={S.episodeTitle}>New-release notifications</Text><Switch value={library.preferences.notifications} onValueChange={async v=>{if(!v){void disableAlerts();return;}try{const ok=await enableAlerts();if(!ok)Alert.alert("Notifications","Permission was not granted.");}catch{Alert.alert("Setup required","Push alerts require cloud credentials and an active notification service.");}}}/></View>
    <View style={S.setting}><Text style={S.episodeTitle}>Anonymous usage analytics</Text><Switch value={library.preferences.telemetry} onValueChange={v=>void preference("telemetry",v)}/></View>
-   <Text style={S.sub}>Location is never required. Your watchlist and resume history are stored on this device.</Text>
+   <Text style={S.sub}>Region: {library.preferences.region}. Location is optional. Precise coordinates are never stored or sent to analytics.</Text>
+   <View style={{marginTop:12}}><Btn label="Use location once for regional suggestions" fill={C.panel} onPress={async()=>{
+     try{
+       const perm=await Location.requestForegroundPermissionsAsync();
+       if(!perm.granted){Alert.alert("Location","Permission not granted. You can continue without location.");return;}
+       const result=await Location.getCurrentPositionAsync({accuracy:Location.Accuracy.Low});
+       const names=await Location.reverseGeocodeAsync(result.coords);
+       const country=names[0]?.country||"Global";
+       await preference("region",country);
+       Alert.alert("Region set",country+" — saved locally, not sent to analytics.");
+     }catch{Alert.alert("Region unavailable","You can continue using PinFlix without location.");}
+   }}/></View>
    <View style={{marginTop:20}}><Btn label="Clear watch history" fill={C.panel} onPress={()=>Alert.alert("Clear history?","Saved titles will remain.",[{text:"Cancel"},{text:"Clear",style:"destructive",onPress:()=>void clearHistory()}])}/></View>
    <Text style={[S.credit,{marginTop:40}]}>{CREDIT} · PinFlix v2.0</Text>
   </ScrollView>}
