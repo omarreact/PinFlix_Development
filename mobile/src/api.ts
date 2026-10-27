@@ -1,5 +1,25 @@
 import type {Catalogue,Detail,Playback} from "./types";
-const API="https://pinflix.pincodeit.com";
+
+/**
+ * All mobile catalogue, detail and playback requests must target the
+ * CineplexBD-only PinFlix_Development backend.
+ * The final hostname currently serves another codebase; do not select it
+ * until the source-only release gate and production migration have passed.
+ */
+const STAGING_API="https://pin-flix.pincodeit.com";
+const RELEASE_API="https://pinflix.pincodeit.com";
+const specified=process.env.EXPO_PUBLIC_PINFLIX_API_ORIGIN || STAGING_API;
+const API=(() => {
+ const url=new URL(specified);
+ if(url.protocol!=="https:"||url.username||url.password||url.pathname!=="/"||url.search||url.hash)
+   throw new Error("Invalid PinFlix API endpoint.");
+ if(![STAGING_API,RELEASE_API].includes(url.origin))
+   throw new Error("Unknown PinFlix catalogue backend.");
+ if(url.origin===RELEASE_API&&process.env.EXPO_PUBLIC_PINFLIX_RELEASE_APPROVED!=="true")
+   throw new Error("Final PinFlix backend is not cleared for release.");
+ return url.origin;
+})();
+export const apiOrigin=API;
 export async function request<T>(resource:string, params:Record<string,string|number|boolean|undefined>={}):Promise<T>{
  const q=new URLSearchParams();
  for(const [k,v] of Object.entries(params))if(v!==undefined&&v!=="")q.set(k,String(v));
