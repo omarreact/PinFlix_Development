@@ -319,7 +319,7 @@ public class MainActivity extends Activity {
             title.setGravity(Gravity.CENTER);
             box.addView(title);
             gap(box,15);
-            TextView text=text("Connecting to the CineplexBD catalogue.\nIf it is unavailable on this network, try Discover again.",13,SOFT,false);
+            TextView text=text("Connecting to the PinFlix catalogue.\nIf it is unavailable on this network, try Discover again.",13,SOFT,false);
             text.setGravity(Gravity.CENTER);
             box.addView(text);
             gap(box,18);
@@ -426,7 +426,7 @@ public class MainActivity extends Activity {
         base(true,true);
         TextView heading=text("Discover",26,WHITE,true);
         page.addView(heading,margins(-1,-2,2,10,0,5));
-        TextView desc=text("Movies and series from CineplexBD",13,SOFT,false);
+        TextView desc=text("Movies and series from PinFlix",13,SOFT,false);
         page.addView(desc,margins(-1,-2,2,0,0,17));
 
         LinearLayout searchRow=horizontal();
@@ -608,7 +608,7 @@ public class MainActivity extends Activity {
             screen="intro";render();
         }),new LinearLayout.LayoutParams(-1,dp(51)));
         gap(page,25);
-        page.addView(text("PinFlix Sources • 1.2 Preview\nNative Android • CineplexBD catalogue\nPlayback subject to source availability.",
+        page.addView(text("PinFlix Sources • 1.2 Preview\nNative Android • Made by PINCODE IT\nPlayback subject to source availability.",
             12,SOFT,false));
     }
 
