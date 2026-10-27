@@ -28,7 +28,7 @@ def snapshot(name):
 
 
 def nodes():
-    adb("shell", "uiautomator", "dump", "/sdcard/pinflix-window.xml", timeout=25)
+    adb("shell", "uiautomator", "dump", "/sdcard/pinflix-window.xml", timeout=45)
     xml = adb("exec-out", "cat", "/sdcard/pinflix-window.xml")
     return list(ET.fromstring(xml).iter("node"))
 
@@ -110,10 +110,11 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("apk")
     args = parser.parse_args()
-    adb("install", "-r", args.apk, timeout=90)
-    adb("logcat", "-c")
-    adb("shell", "am", "start", "-n", "com.pincodeit.pinflix.mobile/.MainActivity")
     try:
+        adb("install", "-r", "--no-streaming", args.apk, timeout=360)
+        REPORT.append("Release APK installed on emulator")
+        adb("logcat", "-c")
+        adb("shell", "am", "start", "-n", "com.pincodeit.pinflix.mobile/.MainActivity")
         try:
             tap_text("Get Started", 18)
         except RuntimeError:
@@ -157,7 +158,10 @@ def main():
         snapshot("failure")
         raise
     finally:
-        logs = adb("logcat", "-d", "-s", "PinFlixDirect:I", "ReactNativeJS:E", "ExpoVideo:E", "*:S")
+        try:
+            logs = adb("logcat", "-d", "-s", "PinFlixDirect:I", "ReactNativeJS:E", "ExpoVideo:E", "*:S")
+        except Exception as exc:
+            logs = f"Logcat unavailable: {exc}\n"
         (OUT / "logcat.txt").write_text(logs)
         REPORT.extend(line for line in logs.splitlines() if "Resolved " in line)
         (OUT / "report.txt").write_text("\n".join(REPORT) + "\n")
