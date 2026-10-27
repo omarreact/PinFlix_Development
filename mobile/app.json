@@ -8,13 +8,17 @@
     "userInterfaceStyle": "dark",
     "ios": {
       "bundleIdentifier": "com.pincodeit.pinflix.mobile",
-      "supportsTablet": true
+      "supportsTablet": true,
+      "infoPlist": {
+        "NSLocationWhenInUseUsageDescription": "PinFlix uses your approximate location only when you choose regional suggestions."
+      }
     },
     "android": {
       "package": "com.pincodeit.pinflix.mobile",
       "permissions": [
         "INTERNET",
-        "POST_NOTIFICATIONS"
+        "POST_NOTIFICATIONS",
+        "ACCESS_COARSE_LOCATION"
       ],
       "blockedPermissions": [
         "android.permission.ACCESS_FINE_LOCATION",
@@ -30,7 +34,16 @@
         }
       ],
       "expo-notifications",
-      "expo-screen-orientation"
+      "expo-screen-orientation",
+      [
+        "expo-location",
+        {
+          "locationWhenInUsePermission": "Allow PinFlix to use your approximate location only when you choose regional suggestions.",
+          "isIosBackgroundLocationEnabled": false,
+          "isAndroidBackgroundLocationEnabled": false,
+          "isAndroidForegroundServiceEnabled": false
+        }
+      ]
     ],
     "extra": {
       "apiOrigin": "https://pinflix.pincodeit.com"
