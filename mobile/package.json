@@ -8,7 +8,8 @@
     "android": "expo run:android",
     "ios": "expo run:ios",
     "check": "tsc --noEmit",
-    "postinstall": "node scripts/build-brand.cjs"
+    "postinstall": "node scripts/build-brand.cjs",
+    "test:playback": "tsx --test src/legacy-source.test.ts"
   },
   "dependencies": {
     "expo": "~54.0.38",
@@ -27,6 +28,7 @@
   "devDependencies": {
     "typescript": "~5.9.2",
     "@types/react": "~19.1.10",
-    "sharp": "0.35.5"
+    "sharp": "0.35.5",
+    "tsx": "^4.20.6"
   }
 }
