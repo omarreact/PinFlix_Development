@@ -231,10 +231,20 @@ public final class ProviderClient {
         if (url == null || url.isEmpty()) return null;
         try {
             byte[] b = get(url, true, 3000000);
+            // Decode bounds first: do not allocate full-resolution poster bitmaps
+            // just to render a small card or hero image.
+            BitmapFactory.Options bounds = new BitmapFactory.Options();
+            bounds.inJustDecodeBounds = true;
+            BitmapFactory.decodeByteArray(b, 0, b.length, bounds);
+            if (bounds.outWidth <= 0 || bounds.outHeight <= 0) return null;
+            int sample = 1;
+            int longest = Math.max(bounds.outWidth, bounds.outHeight);
+            while (longest / sample > 800 && sample < 64) sample *= 2;
             BitmapFactory.Options options = new BitmapFactory.Options();
-            options.inSampleSize = 2;
+            options.inSampleSize = sample;
+            options.inPreferredConfig = Bitmap.Config.RGB_565;
             return BitmapFactory.decodeByteArray(b, 0, b.length, options);
-        } catch (Exception ignored) { return null; }
+        } catch (Exception | OutOfMemoryError ignored) { return null; }
     }
 
     private static String year(String value) {
