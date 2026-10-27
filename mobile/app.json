@@ -3,7 +3,7 @@
     "name": "PinFlix",
     "slug": "pinflix-mobile",
     "scheme": "pinflix",
-    "version": "2.0.6",
+    "version": "2.0.7",
     "orientation": "default",
     "userInterfaceStyle": "dark",
     "ios": {
@@ -28,7 +28,7 @@
         "foregroundImage": "./assets/icon.png",
         "backgroundColor": "#0A0818"
       },
-      "versionCode": 7
+      "versionCode": 8
     },
     "plugins": [
       [
