@@ -7,7 +7,8 @@
     "start": "expo start",
     "android": "expo run:android",
     "ios": "expo run:ios",
-    "check": "tsc --noEmit"
+    "check": "tsc --noEmit",
+    "postinstall": "node scripts/build-brand.cjs"
   },
   "dependencies": {
     "expo": "~54.0.38",
@@ -25,6 +26,7 @@
   },
   "devDependencies": {
     "typescript": "~5.9.2",
-    "@types/react": "~19.1.10"
+    "@types/react": "~19.1.10",
+    "sharp": "0.35.5"
   }
 }
