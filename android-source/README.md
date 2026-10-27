@@ -23,3 +23,18 @@ CineplexBD's public endpoints and videos may not be reachable from every ISP, an
 Run `gradle -p android-source :app:assembleDebug` on JDK 17 + Android SDK 35 with Gradle 8.13, or download the artifact from the GitHub Actions workflow. Debug APK package: `com.pincodeit.pinflix.source.preview`, separate from the original PinFlix app.
 
 This is a debug-key-signed **testing build**, not a Play Store release. Only use streams you have rights to access. Install and playback require real-device QA.
+
+## Version 1.1 — cinematic UI and player controls
+
+The native UI includes a featured hero, styled poster catalogue, category chips, bottom navigation, polished detail/episode lists, and loading/error feedback.
+
+The Media3 video player provides:
+- Large central play/pause, 10-second rewind/forward, tap to toggle controls and double tap to seek on either side
+- Seekbar with elapsed/duration timestamps (only when the provider allows seeking)
+- 0.5×, 0.75×, 1×, 1.25×, 1.5× and 2× playback speed; speed preference saved
+- Adaptive quality selection when HLS exposes selectable video tracks (progressive MP4 often has a single quality)
+- Subtitles toggle when a usable text track is present
+- Fit/zoom, device volume, fullscreen landscape and picture-in-picture on supported devices
+- Control lock, automatic chrome fade, network buffering/error feedback and lifecycle-safe player release
+
+The app still plays **only** provider-authorized media; it does not bypass upstream access controls or invent extra quality/subtitle tracks. The generated preview APK is debug-signed; a publicly distributed update requires signing and real-device playback QA.
