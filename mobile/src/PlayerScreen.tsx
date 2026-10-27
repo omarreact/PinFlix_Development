@@ -1,5 +1,5 @@
 import React,{useEffect,useRef,useState} from "react";
-import {ActivityIndicator,Alert,BackHandler,Dimensions,Image,Pressable,ScrollView,StatusBar,StyleSheet,Text,View} from "react-native";
+import {ActivityIndicator,Alert,Animated,BackHandler,Dimensions,Image,Pressable,ScrollView,StatusBar,StyleSheet,Text,View} from "react-native";
 import Slider from "@react-native-community/slider";
 import {useVideoPlayer,VideoView} from "expo-video";
 import * as Orientation from "expo-screen-orientation";
@@ -27,6 +27,8 @@ export default function PlayerScreen({title,detail,season,episode,onClose,onNext
  const [panel,setPanel]=useState<"speed"|"quality"|"audio"|"subtitle"|null>(null);
  const [resumed,setResumed]=useState(0);
  const positionRef=useRef(0),lastSaved=useRef(0);
+ const introBegin=useRef<(()=>void)|null>(null);
+ const introScale=useRef(new Animated.Value(.65)).current;
  const episodeList=detail?.episodes||[];
  const idx=episodeList.findIndex(e=>e.number===episode);
  const next=idx>=0?episodeList[idx+1]:undefined;
@@ -62,11 +64,18 @@ export default function PlayerScreen({title,detail,season,episode,onClose,onNext
      player.play();
      track("play_started",{id:title.id,kind:title.kind});
     };
-    if(read().preferences.intro){setIntro(true);introTimer=setTimeout(()=>{setIntro(false);void begin();},2200);}else await begin();
+    let begun=false;
+    introBegin.current=()=>{if(begun)return;begun=true;setIntro(false);void begin();};
+    if(read().preferences.intro){
+     setIntro(true);
+     introScale.setValue(.65);
+     Animated.spring(introScale,{toValue:1,friction:7,tension:38,useNativeDriver:true}).start();
+     introTimer=setTimeout(()=>introBegin.current?.(),2200);
+    }else await begin();
    }catch(e){if(active){setIntro(false);setStatus("");setError(e instanceof Error?e.message:"Playback unavailable.");}}
   };
   void start();
-  return()=>{active=false;if(introTimer)clearTimeout(introTimer);progress(title,season,episode,positionRef.current,player.duration||0);};
+  return()=>{active=false;introBegin.current=null;if(introTimer)clearTimeout(introTimer);progress(title,season,episode,positionRef.current,player.duration||0);};
  },[title.id,season,episode,player]);
  const close=()=>{progress(title,season,episode,positionRef.current,player.duration||0);player.pause();onClose();};
  const choose=(name:"speed"|"quality"|"audio"|"subtitle")=>setPanel(panel===name?null:name);
@@ -74,7 +83,7 @@ export default function PlayerScreen({title,detail,season,episode,onClose,onNext
   <StatusBar hidden/>
   <VideoView player={player} style={StyleSheet.absoluteFill} nativeControls={false} allowsFullscreen allowsPictureInPicture contentFit={fit}/>
   <Pressable style={StyleSheet.absoluteFill} onPress={()=>setShow(!show)}/>
-  {intro&&<View style={s.intro}><Image source={require("../assets/icon.png")} style={{width:116,height:116,borderRadius:23}}/><Text style={s.brand}>PinFlix</Text><Text style={s.credit}>{CREDIT}</Text><Btn label="Skip intro" onPress={()=>setIntro(false)}/></View>}
+  {intro&&<View style={s.intro}><Animated.View style={{alignItems:"center",transform:[{scale:introScale}]}}><Image source={require("../assets/icon.png")} style={{width:116,height:116,borderRadius:23}}/><Text style={s.brand}>PinFlix</Text></Animated.View><Text style={s.credit}>{CREDIT}</Text><Btn label="Skip intro" onPress={()=>introBegin.current?.()}/></View>}
   {!!status&&!intro&&<View pointerEvents="none" style={s.center}><ActivityIndicator color={C.magenta}/><Text style={s.sub}>{status}</Text></View>}
   {!!error&&<View style={s.center}><Text style={s.error}>{error}</Text><Btn label="Back" onPress={close}/></View>}
   {locked?<View style={s.unlock}><Btn label="Unlock" onPress={()=>setLocked(false)}/></View>:show&&!intro&&!error&&<View pointerEvents="box-none" style={StyleSheet.absoluteFill}>
