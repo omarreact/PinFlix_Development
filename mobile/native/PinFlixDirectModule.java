@@ -2,7 +2,6 @@ package com.pincodeit.pinflix.source;
 
 import android.net.Uri;
 import android.graphics.Bitmap;
-import android.util.Base64;
 import android.util.Log;
 import androidx.annotation.NonNull;
 import com.facebook.react.bridge.Arguments;
@@ -13,7 +12,10 @@ import com.facebook.react.bridge.ReactMethod;
 import com.facebook.react.bridge.WritableArray;
 import com.facebook.react.bridge.WritableMap;
 import java.util.ArrayList;
-import java.io.ByteArrayOutputStream;
+import java.io.File;
+import java.io.FileOutputStream;
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.LinkedHashMap;
@@ -192,14 +194,60 @@ public final class PinFlixDirectModule extends ReactContextBaseJavaModule {
         });
     }
 
+    // Store artwork on disk instead of passing large Base64 image strings
+    // across the React Native bridge. This bounds launch memory usage when
+    // movie and series rails render simultaneously on physical devices.
+    private static String posterName(String url) throws Exception {
+        byte[] hash=MessageDigest.getInstance("SHA-256").digest(url.getBytes(StandardCharsets.UTF_8));
+        StringBuilder out=new StringBuilder();
+        for(byte value:hash)out.append(String.format(java.util.Locale.ROOT,"%02x",value&0xff));
+        return out.toString()+".jpg";
+    }
+
+    private static void trimPosterCache(File dir){
+        File[] all=dir.listFiles((folder,name)->name.endsWith(".jpg"));
+        if(all==null||all.length<=80)return;
+        java.util.Arrays.sort(all,Comparator.comparingLong(File::lastModified));
+        for(int n=0;n<all.length-80;n++)all[n].delete();
+    }
+
     @ReactMethod public void poster(String url,Promise promise){
         async(artworkIo,promise,()->{
+            File dir=new File(getReactApplicationContext().getCacheDir(),"pinflix-posters");
+            if(!dir.isDirectory()&&!dir.mkdirs())throw new Exception("Artwork cache unavailable");
+            // ProviderClient.poster validates the host and port before fetching.
+            // Do not serve cached images for a non-allowlisted URL.
+            if(url==null||!ProviderClient.allowedPosterUrl(url))throw new Exception("Artwork source not allowed");
+            File target=new File(dir,posterName(url));
+            if(target.isFile()&&target.length()>100){
+                target.setLastModified(System.currentTimeMillis());
+                return Uri.fromFile(target).toString();
+            }
             Bitmap bitmap=ProviderClient.poster(url);
             if(bitmap==null)throw new Exception("Artwork unavailable");
-            try(ByteArrayOutputStream bytes=new ByteArrayOutputStream()){
-                if(!bitmap.compress(Bitmap.CompressFormat.JPEG,82,bytes))throw new Exception("Artwork could not be decoded");
-                return "data:image/jpeg;base64,"+Base64.encodeToString(bytes.toByteArray(),Base64.NO_WRAP);
-            }finally{bitmap.recycle();}
+            File temp=new File(dir,target.getName()+".tmp");
+            try{
+                Bitmap compressed=bitmap;
+                int side=Math.max(bitmap.getWidth(),bitmap.getHeight());
+                if(side>640){
+                    float scale=640.0f/side;
+                    compressed=Bitmap.createScaledBitmap(bitmap,
+                        Math.max(1,Math.round(bitmap.getWidth()*scale)),
+                        Math.max(1,Math.round(bitmap.getHeight()*scale)),true);
+                }
+                try(FileOutputStream output=new FileOutputStream(temp)){
+                    if(!compressed.compress(Bitmap.CompressFormat.JPEG,75,output))
+                        throw new Exception("Artwork encoding failed");
+                }finally{
+                    if(compressed!=bitmap)compressed.recycle();
+                }
+                if(!temp.renameTo(target))throw new Exception("Artwork cache write failed");
+                trimPosterCache(dir);
+                return Uri.fromFile(target).toString();
+            }finally{
+                bitmap.recycle();
+                if(temp.exists())temp.delete();
+            }
         });
     }
 
