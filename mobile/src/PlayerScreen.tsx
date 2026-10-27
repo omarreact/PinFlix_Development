@@ -5,7 +5,7 @@ import {useVideoPlayer,VideoView} from "expo-video";
 import * as Orientation from "expo-screen-orientation";
 import {C,CREDIT} from "./theme";
 import type{Detail,Title,Playback}from "./types";
-import {playback,streamUrl} from "./api";
+import {resolveMobilePlayback} from "./playback-source";
 import {progress,lastPosition,read,preference,addToQueue} from "./library";
 import {track} from "./telemetry";
 export type PlayerProps={title:Title;detail:Detail|null;season:number;episode:number;onClose:()=>void;onNext:(season:number,episode:number)=>void};
@@ -48,12 +48,12 @@ export default function PlayerScreen({title,detail,season,episode,onClose,onNext
   let active=true;let introTimer:ReturnType<typeof setTimeout>|undefined;
   const start=async()=>{
    try{
-    const data=await playback(title.id,season,episode);
+    const data=await resolveMobilePlayback(title.id,season,episode);
     if(!active)return;
     if(data.status!=="ready"||!data.url)throw Error(data.message||"Playback not available.");
-    const url=streamUrl(data.url);
+    const url=data.url;
     const begin=async()=>{
-     await player.replaceAsync({uri:url,contentType:data.format==="hls"?"hls":"progressive"});
+     await player.replaceAsync({uri:url,contentType:data.format==="hls"?"hls":"progressive",...(data.transport==="direct"?{headers:data.headers}:{})});
      if(!active)return;
      const previous=lastPosition(title.id,season,episode);
      if(previous>15){player.currentTime=previous;setResumed(previous);}
