@@ -75,6 +75,7 @@ public final class ProviderClient {
         public String description = "";
         public final List<Integer> seasons = new ArrayList<>();
         public final List<Episode> episodes = new ArrayList<>();
+        public final List<String> cast = new ArrayList<>();
     }
 
     public static class Stream {
@@ -354,6 +355,11 @@ public final class ProviderClient {
             }
         }
         d.description = overview == null ? "" : overview.text().trim();
+        for (Element actor : doc.select("a[href*=cast.php]")) {
+            String name = actor.text().trim();
+            if (!name.isEmpty() && name.length() < 90 && !d.cast.contains(name) && d.cast.size() < 12)
+                d.cast.add(name);
+        }
         Element h1 = doc.selectFirst("h1");
         String realName = h1 == null ? "" : h1.ownText().trim();
         if (!realName.trim().isEmpty()) d.item = new Item(item.id, item.kind, realName, item.image, item.category, item.year);
