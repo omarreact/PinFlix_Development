@@ -17,6 +17,9 @@ export async function resolveMobilePlayback(
   let remote:Playback;
   try{remote=await playback(id,season,episode);}
   catch(err){
+    const status=(err as {status?:number}|null)?.status;
+    // Never fall back around a 4xx authorization, restriction, or rate-limit response.
+    if(typeof status==="number"&&status>=400&&status<500)throw err;
     // Network failures to PinFlix do not imply authorization restrictions.
     // The app's legacy Android source works independently of the server.
     if(Platform.OS==="android")return resolveLegacyDirect(id,season,episode);
