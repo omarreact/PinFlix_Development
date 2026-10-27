@@ -52,7 +52,7 @@ jobs:
       - name: Upload versioned APK and build evidence
         uses: actions/upload-artifact@v4
         with:
-          name: PinFlix-Android-Direct-2.0.6-Preview
+          name: PinFlix-Android-Direct-2.0.7-Preview
           path: |
             mobile/android/app/build/outputs/apk/release/*.apk
             mobile/android-apk.sha256
@@ -71,7 +71,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/download-artifact@v4
         with:
-          name: PinFlix-Android-Direct-2.0.6-Preview
+          name: PinFlix-Android-Direct-2.0.7-Preview
           path: mobile/preview-apk
       - name: Enable emulator hardware acceleration
         run: sudo chmod 666 /dev/kvm
@@ -97,7 +97,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/download-artifact@v4
         with:
-          name: PinFlix-Android-Direct-2.0.6-Preview
+          name: PinFlix-Android-Direct-2.0.7-Preview
           path: mobile/preview-apk
       - name: Enable Android emulator acceleration
         run: sudo chmod 666 /dev/kvm
@@ -111,6 +111,6 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: PinFlix-Android-Direct-2.0.6-Device-Smoke
+          name: PinFlix-Android-Direct-2.0.7-Device-Smoke
           path: mobile/android-smoke/
           if-no-files-found: warn
