@@ -64,6 +64,24 @@ def clock_position():
     return None
 
 
+def wait_position(minimum, seconds=25):
+    end = time.monotonic() + seconds
+    while time.monotonic() < end:
+        value = clock_position()
+        if value is not None and value >= minimum:
+            return value
+        time.sleep(2)
+    raise RuntimeError(f"Playback clock never reached {minimum}s")
+
+
+def assert_format(kind, required):
+    logs = adb("logcat", "-d", "-s", "PinFlixDirect:I", "*:S")
+    match = re.search(rf"Resolved ({kind}-\d+) episode \d+ as {required}", logs)
+    if not match:
+        raise RuntimeError(f"No verified {required} source for {kind}; native resolution log: {logs[-1200:]}")
+    REPORT.append(f"{kind}: {match.group(1)} resolved as {required} by original Java provider")
+
+
 def watch(kind):
     if kind == "series":
         tap_text("Series")
@@ -82,7 +100,7 @@ def watch(kind):
             if value >= max(2, first + 2):
                 REPORT.append(f"{kind}: playback clock advanced {first}s to {value}s")
                 snapshot(kind + "-playing")
-                return
+                return value
         time.sleep(2)
     snapshot(kind + "-failed")
     raise RuntimeError(f"{kind}: playback clock did not advance; visible text: {[t for t, _ in visible() if t][:25]}")
@@ -103,11 +121,37 @@ def main():
         wait_text("For You", 65)
         REPORT.append("Native bridge loaded catalogue into the release app")
         snapshot("catalogue")
-        watch("movie")
+        position = watch("movie")
+        assert_format("movie", "MP4")
+        tap_text("10 ↷")
+        position = wait_position(position + 8)
+        tap_text("10 ↷")
+        wait_position(max(16, position + 8))
+        REPORT.append("MP4 seek advanced the playback clock")
+        tap_text("Speed ")
+        tap_text("1.25×")
+        wait_text("Speed 1.25×")
+        REPORT.append("Speed control changed playback to 1.25×")
+        adb("shell", "input", "keyevent", "4")
+        tap_text("Play Movie")
+        wait_text("Resumed at")
+        REPORT.append("Movie resume restored the saved playback position")
         adb("shell", "input", "keyevent", "4")
         tap_text("‹ Back") if any("‹ Back" in t for t, _ in visible()) else tap_text("‹")
         wait_text("For You")
         watch("series")
+        assert_format("series", "HLS")
+        tap_text("CC")
+        wait_text("Off")
+        REPORT.append("Subtitle panel opened and offered Off; source tracks depend on the provider")
+        tap_text("CC")
+        tap_text("PiP")
+        time.sleep(3)
+        state = adb("shell", "dumpsys", "activity", "activities")
+        if not re.search(r"windowingMode=pin|type=pip|PictureInPictureMode=true", state, re.I):
+            raise RuntimeError("PiP control did not enter Android picture in picture mode")
+        REPORT.append("Android entered picture in picture mode")
+        snapshot("picture-in-picture")
     except Exception as exc:
         REPORT.append("FAIL: " + str(exc))
         snapshot("failure")

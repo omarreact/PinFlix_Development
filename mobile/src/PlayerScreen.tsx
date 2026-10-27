@@ -14,6 +14,7 @@ const time=(n:number)=>{const t=Math.max(0,Math.floor(n));return Math.floor(t/60
 function Btn({label,onPress}:{label:string;onPress:()=>void}){return <Pressable onPress={onPress} style={s.btn}><Text style={s.btnTxt}>{label}</Text></Pressable>;}
 export default function PlayerScreen({title,detail,season,episode,onClose,onNext}:PlayerProps){
  const player=useVideoPlayer(null,p=>{p.timeUpdateEventInterval=1;});
+ const videoView=useRef<VideoView>(null);
  const [status,setStatus]=useState("Connecting…");
  const [error,setError]=useState("");
  const [playing,setPlaying]=useState(false);
@@ -85,7 +86,7 @@ export default function PlayerScreen({title,detail,season,episode,onClose,onNext
  const choose=(name:"speed"|"quality"|"audio"|"subtitle")=>setPanel(panel===name?null:name);
  return <View style={s.root}>
   <StatusBar hidden/>
-  <VideoView player={player} style={StyleSheet.absoluteFill} nativeControls={false} allowsFullscreen allowsPictureInPicture contentFit={fit}/>
+  <VideoView ref={videoView} player={player} style={StyleSheet.absoluteFill} nativeControls={false} allowsFullscreen allowsPictureInPicture startsPictureInPictureAutomatically contentFit={fit}/>
   <Pressable style={StyleSheet.absoluteFill} onPress={()=>setShow(!show)}/>
   {intro&&<View style={s.intro}><Animated.View style={{alignItems:"center",transform:[{scale:introScale}]}}><Image source={require("../assets/icon.png")} style={{width:116,height:116,borderRadius:23}}/><Text style={s.brand}>PinFlix</Text></Animated.View><Text style={s.credit}>{CREDIT}</Text><Btn label="Skip intro" onPress={()=>introBegin.current?.()}/></View>}
   {!!status&&!intro&&<View pointerEvents="none" style={s.center}><ActivityIndicator color={C.magenta}/><Text style={s.sub}>{status}</Text></View>}
@@ -98,6 +99,8 @@ export default function PlayerScreen({title,detail,season,episode,onClose,onNext
     <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{gap:7}}>
      <Btn label={"Speed "+speed+"×"} onPress={()=>choose("speed")}/><Btn label="Quality" onPress={()=>choose("quality")}/><Btn label="CC" onPress={()=>choose("subtitle")}/><Btn label="Audio" onPress={()=>choose("audio")}/>
      <Btn label={fit==="contain"?"Fill":"Fit"} onPress={()=>setFit(fit==="contain"?"cover":"contain")}/>
+     <Btn label="Fullscreen" onPress={()=>{void videoView.current?.enterFullscreen().catch(()=>{});}}/>
+     <Btn label="PiP" onPress={()=>{void videoView.current?.startPictureInPicture().catch(()=>Alert.alert("Picture in Picture","This device cannot enter picture in picture mode."));}}/>
      <Btn label="Repeat" onPress={()=>{player.loop=!player.loop;void preference("repeat",player.loop);}}/>
      <Btn label="Queue +" onPress={()=>void addToQueue(title.id,season,episode)}/>
      <Btn label="Sleep 30m" onPress={()=>setTimeout(()=>player.pause(),1800000)}/>
