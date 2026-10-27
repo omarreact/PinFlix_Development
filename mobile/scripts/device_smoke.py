@@ -120,6 +120,14 @@ def main():
         except RuntimeError:
             pass  # Intro was already dismissed by persisted state.
         wait_text("For You", 65)
+        deadline = time.monotonic() + 65
+        while True:
+            labels = [label for label, _ in visible() if label]
+            if any("◇" in label and "Movie" in label for label in labels):
+                break
+            if time.monotonic() >= deadline:
+                raise RuntimeError(f"Catalogue rendered no movie cards; visible text: {labels[:25]}")
+            time.sleep(2)
         REPORT.append("Native bridge loaded catalogue into the release app")
         snapshot("catalogue")
         position = watch("movie")
