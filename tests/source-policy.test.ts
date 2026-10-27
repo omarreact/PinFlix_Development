@@ -24,13 +24,20 @@ test("standalone Cloudflare Worker has no alternative catalogue or stream gatewa
  assert.match(worker,/const ORIGIN="http:\/\/cineplexbd\.net"/);
 });
 
-test("cross-platform preview uses only the CineplexBD-backed PinFlix Development API",()=>{
- const src=readFileSync("mobile/src/api.ts","utf8");
- const cfg=JSON.parse(readFileSync("mobile/app.json","utf8"));
- const eas=JSON.parse(readFileSync("mobile/eas.json","utf8"));
- assert.equal(cfg.expo.extra.apiOrigin,"https://pin-flix.pincodeit.com");
- assert.match(src,/const STAGING_API="https:\/\/pin-flix\.pincodeit\.com"/);
- assert.match(src,/EXPO_PUBLIC_PINFLIX_RELEASE_APPROVED/);
- assert.equal(eas.build.preview.env.EXPO_PUBLIC_PINFLIX_API_ORIGIN,"https://pin-flix.pincodeit.com");
- assert.notEqual(eas.build.production.env.EXPO_PUBLIC_PINFLIX_API_ORIGIN,"https://pinflix.pincodeit.com");
+test("standalone Android uses the native source with no web API",()=>{
+ const api=readFileSync("mobile/src/api.android.ts","utf8");
+ const playback=readFileSync("mobile/src/playback-source.android.ts","utf8");
+ const provider=readFileSync("mobile/native/ProviderClient.java","utf8");
+ const config=JSON.parse(readFileSync("mobile/app.json","utf8"));
+ assert.match(api,/NativeModules\.PinFlixDirect/);
+ assert.match(provider,/http:\/\/cineplexbd\.net/);
+ assert.match(playback,/return playback\(id,season,episode\)/);
+ assert.equal(config.expo.extra.androidSourceMode,"direct-native-v1");
+ assert.equal(config.expo.extra.apiOrigin,undefined);
+ assert.doesNotMatch(api,/https?:\/\/(?:pinflix|pin-flix|admin)\.pincodeit\.com/);
+});
+test("iOS backend retains independent release gating",()=>{
+ const api=readFileSync("mobile/src/api.ts","utf8");
+ assert.match(api,/EXPO_PUBLIC_PINFLIX_RELEASE_APPROVED/);
+ assert.match(api,/const STAGING_API="https:\/\/pin-flix\.pincodeit\.com"/);
 });
