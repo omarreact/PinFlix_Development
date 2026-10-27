@@ -9,7 +9,8 @@
     "ios": "expo run:ios",
     "check": "tsc --noEmit",
     "postinstall": "node scripts/build-brand.cjs",
-    "test:playback": "tsx --test src/legacy-source.test.ts"
+    "test:playback": "tsx --test src/legacy-source.test.ts",
+    "test:direct": "tsx --test src/api-direct.test.ts"
   },
   "dependencies": {
     "expo": "~54.0.38",
