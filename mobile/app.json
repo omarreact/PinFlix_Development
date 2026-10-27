@@ -23,7 +23,11 @@
       "blockedPermissions": [
         "android.permission.ACCESS_FINE_LOCATION",
         "android.permission.ACCESS_BACKGROUND_LOCATION"
-      ]
+      ],
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/icon.png",
+        "backgroundColor": "#0A0818"
+      }
     },
     "plugins": [
       [
@@ -50,6 +54,7 @@
     },
     "updates": {
       "enabled": false
-    }
+    },
+    "icon": "./assets/icon.png"
   }
 }
