@@ -26,7 +26,7 @@ export async function request<T>(resource:string, params:Record<string,string|nu
  const abort=new AbortController();const timer=setTimeout(()=>abort.abort(),16000);
  try{
   const r=await fetch(`${API}/api/${resource}/?${q.toString()}`,{signal:abort.signal,headers:{Accept:"application/json"}});
-  if(!r.ok)throw new Error(r.status===429?"Too many requests. Try again shortly.":"Content is currently unavailable.");
+  if(!r.ok){const error=new Error(r.status===429?"Too many requests. Try again shortly.":"Content is currently unavailable.") as Error & {status?:number};error.status=r.status;throw error;}
   const data=await r.json();if(data.error)throw new Error("Content unavailable.");
   return data as T;
  }finally{clearTimeout(timer);}
