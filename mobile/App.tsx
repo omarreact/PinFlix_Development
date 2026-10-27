@@ -14,9 +14,17 @@ import {track} from "./src/telemetry";
 
 type Tab="Home"|"Discover"|"Saved"|"Profile";
 const W=Dimensions.get("window").width;
+function posterSource(raw:string|null|undefined){
+ const uri=artworkUrl(raw);
+ return uri?{uri,...(Platform.OS==="android"?{headers:{Referer:"http://cineplexbd.net/","User-Agent":"PinFlixSources/1.0 Android"}}:{})}:undefined;
+}
+function sourceError(error:unknown){
+ const status=error instanceof Error?error.message.match(/HTTP\s*(\d{3})/i)?.[1]:undefined;
+ return status?`The source returned HTTP ${status}. Check access on this network and try again.`:"Could not reach the catalogue. Check your connection and try again.";
+}
 function Btn({label,onPress,fill=C.purple}:{label:string;onPress:()=>void;fill?:string}){return <Pressable onPress={onPress} style={[S.button,{backgroundColor:fill}]}><Text style={S.buttonText}>{label}</Text></Pressable>;}
 function Label({text,action}:{text:string;action?:()=>void}){return <View style={S.sectionRow}><Text style={S.sectionTitle}>{text}</Text>{action&&<Text onPress={action} style={S.small}>See all</Text>}</View>;}
-function Poster({item,onPress,width=118}:{item:Title;onPress:()=>void;width?:number}){return <Pressable style={{width,marginRight:11}} onPress={onPress}><Image source={artworkUrl(item.poster)?{uri:artworkUrl(item.poster)}:undefined} style={{width,height:width*1.48,borderRadius:13,backgroundColor:C.panel}}/><Text numberOfLines={2} style={S.posterTitle}>{item.title}</Text><Text style={S.caption}>{item.year||"Movie"} · {item.kind==="series"?"Series":"Film"}</Text></Pressable>;}
+function Poster({item,onPress,width=118}:{item:Title;onPress:()=>void;width?:number}){return <Pressable style={{width,marginRight:11}} onPress={onPress}><Image source={posterSource(item.poster)} style={{width,height:width*1.48,borderRadius:13,backgroundColor:C.panel}}/><Text numberOfLines={2} style={S.posterTitle}>{item.title}</Text><Text style={S.caption}>{item.year||"Movie"} · {item.kind==="series"?"Series":"Film"}</Text></Pressable>;}
 function Rail({titles,onSelect}:{titles:Title[];onSelect:(t:Title)=>void}){return <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{marginHorizontal:-17}} contentContainerStyle={{paddingHorizontal:17}}>{titles.map(i=><Poster key={i.id} item={i} onPress={()=>onSelect(i)}/>)}</ScrollView>;}
 
 function AppBody(){
@@ -28,6 +36,7 @@ function AppBody(){
  const [library,setLibrary]=useState<Library>(read());
  const [selected,setSelected]=useState<Title|null>(null);
  const [data,setData]=useState<Detail|null>(null);
+ const [detailError,setDetailError]=useState("");
  const [player,setPlayer]=useState<{title:Title;season:number;episode:number}|null>(null);
  const [loading,setLoading]=useState(true),[error,setError]=useState("");
  const [query,setQuery]=useState(""),[kind,setKind]=useState("all"),[filter,setFilter]=useState(""),[sort,setSort]=useState("recent");
@@ -48,7 +57,7 @@ function AppBody(){
     setSeries(s.items.filter(x=>!x.mature));
     setFacets(m.facets);
     track("app_open");
-   }catch(e){setError("Unable to load the catalogue. Check your connection and try again.");}
+   }catch(e){setError(sourceError(e));}
    finally{setLoading(false);}
   };
   void load();
@@ -62,15 +71,15 @@ function AppBody(){
    setResults(current=>p===1?res.items:current.concat(res.items.filter(t=>!current.some(c=>c.id===t.id))));
    setHasNext(res.hasNext);setPage(p);setFacets(res.facets||facets);
    track("search",{hasQuery:!!query});
-  }catch{Alert.alert("Search unavailable","Unable to complete this search right now.");}
+  }catch(e){Alert.alert("Search unavailable",sourceError(e));}
   finally{setSearchBusy(false);}
  },[query,kind,sort,year,language,quality,filter]);
 
  useEffect(()=>{if(tab==="Discover")void search(1);},[tab,query,kind,sort,year,language,quality,filter]);
 
  const open=async(item:Title)=>{
-  setSelected(item);setData(null);
-  try{setData(await detail(item.id,1));}catch{setData(null);}
+  setSelected(item);setData(null);setDetailError("");
+  try{setData(await detail(item.id,1));}catch(e){setDetailError(sourceError(e));}
  };
  const play=(title:Title,season=1,episode=1)=>{setPlayer({title,season,episode});};
  const closeDetail=()=>{setSelected(null);setData(null);};
@@ -80,7 +89,7 @@ function AppBody(){
 
  if(intro)return <View style={S.welcome}>
   <StatusBar hidden/>
-  <View style={S.collage}>{movies.slice(0,9).map((title,i)=><Image key={title.id} source={artworkUrl(title.poster)?{uri:artworkUrl(title.poster)}:undefined} style={[S.collageImage,{transform:[{rotate:i%2?"7deg":"-6deg"}]}]}/>)}</View>
+  <View style={S.collage}>{movies.slice(0,9).map((title,i)=><Image key={title.id} source={posterSource(title.poster)} style={[S.collageImage,{transform:[{rotate:i%2?"7deg":"-6deg"}]}]}/>)}</View>
   <LinearGradient colors={["#00000000","#090714","#080716"]} style={StyleSheet.absoluteFill}/>
   <View style={S.welcomeBottom}><Text style={S.welcomeTitle}>Welcome to PinFlix</Text><Text style={S.welcomeText}>Movies, series and stories worth discovering.</Text><Text style={S.credit}>{CREDIT}</Text>
    <Btn label="Get Started" onPress={()=>{setIntro(false);void AsyncStorage.setItem("pinflix-intro-done","1");}}/>
@@ -88,7 +97,7 @@ function AppBody(){
  </View>;
 
  if(selected)return <SafeAreaView style={{flex:1,backgroundColor:C.bg}}><StatusBar barStyle="light-content"/><ScrollView>
-  <ImageBackground source={artworkUrl(selected.backdrop||selected.poster)?{uri:artworkUrl(selected.backdrop||selected.poster)}:undefined} style={S.detailsHero} imageStyle={{backgroundColor:C.panel}}>
+  <ImageBackground source={posterSource(selected.backdrop||selected.poster)} style={S.detailsHero} imageStyle={{backgroundColor:C.panel}}>
    <LinearGradient colors={["#00000011","#090917"]} style={StyleSheet.absoluteFill}/>
    <View style={S.detailTop}><Btn label="‹" fill="#5B4A80" onPress={closeDetail}/><Btn label={library.saved[selected.id]?"♥":"♡"} fill="#5B4A80" onPress={()=>void toggleSaved(selected)}/></View>
    <View style={S.playFloating}><Btn label="▶" fill={C.purple} onPress={()=>play(selected)}/></View>
@@ -97,7 +106,8 @@ function AppBody(){
    <View style={S.pills}><Text style={S.pill}>{selected.category||"Entertainment"}</Text>{selected.quality&&<Text style={S.pill}>{selected.quality}</Text>}<Text style={S.pill}>{selected.language||"Original"}</Text></View>
    <View style={[S.pills,{marginTop:19}]}><Btn label={selected.kind==="series"?"▶ Watch episode":"▶ Play Movie"} onPress={()=>play(selected,1,data?.episodes[0]?.number||1)}/><Btn label={library.saved[selected.id]?"Saved ✓":"+ Watch Later"} fill={C.panel} onPress={()=>void toggleSaved(selected)}/></View>
    <Label text="Cast"/><ScrollView horizontal showsHorizontalScrollIndicator={false}>{data?.title.cast?.length?data.title.cast.map((name,i)=><View key={i} style={S.actor}><View style={S.avatar}><Text style={S.avatarLetter}>{name.slice(0,1)}</Text></View><Text style={S.actorName} numberOfLines={2}>{name}</Text></View>):<Text style={S.sub}>Cast details not available for this title.</Text>}</ScrollView>
-   <Label text="Synopsis"/><Text style={S.description}>{data?.title.synopsis||"More information will appear when available."}</Text>
+   {!!detailError&&<Text style={S.sub}>{detailError}</Text>}
+   <Label text="Synopsis"/><Text style={S.description}>{data?.title.synopsis||(detailError?"Details are currently unavailable.":"More information will appear when available.")}</Text>
    {selected.kind==="series"&&<><Label text="Episodes"/>{(data?.title.seasons||[1]).map(season=><Text key={season} style={S.filterChip} onPress={async()=>{try{setData(await detail(selected.id,season));}catch{}}}>Season {season}</Text>)}{data?.episodes?.map(ep=><Pressable key={ep.season+":"+ep.number} onPress={()=>play(selected,ep.season,ep.number)} style={S.episode}><Text style={S.episodeTitle}>{ep.number}. {ep.title}</Text><Text style={{color:C.magenta}}>▶</Text></Pressable>)}</>}
   </View>
  </ScrollView></SafeAreaView>;
@@ -111,7 +121,7 @@ function AppBody(){
    </ScrollView>
    {loading&&<ActivityIndicator color={C.purple}/>}
    {!!error&&<Text style={S.sub}>{error}</Text>}
-   {!!active&&<><ScrollView horizontal pagingEnabled showsHorizontalScrollIndicator={false} onMomentumScrollEnd={ev=>setFeatured(Math.round(ev.nativeEvent.contentOffset.x/(W-34)))}>{source.slice(0,8).map(i=><Pressable onPress={()=>void open(i)} key={i.id} style={[S.bigPoster,{width:W-34}]}><Image source={artworkUrl(i.poster)?{uri:artworkUrl(i.poster)}:undefined} style={S.heroArt}/><LinearGradient colors={["transparent","#130A33"]} style={StyleSheet.absoluteFill}/><Text style={S.heroTitle} numberOfLines={2}>{i.title}</Text></Pressable>)}</ScrollView>
+   {!!active&&<><ScrollView horizontal pagingEnabled showsHorizontalScrollIndicator={false} onMomentumScrollEnd={ev=>setFeatured(Math.round(ev.nativeEvent.contentOffset.x/(W-34)))}>{source.slice(0,8).map(i=><Pressable onPress={()=>void open(i)} key={i.id} style={[S.bigPoster,{width:W-34}]}><Image source={posterSource(i.poster)} style={S.heroArt}/><LinearGradient colors={["transparent","#130A33"]} style={StyleSheet.absoluteFill}/><Text style={S.heroTitle} numberOfLines={2}>{i.title}</Text></Pressable>)}</ScrollView>
     <Text style={S.featureYear}>{active.year||""}</Text><Text style={S.featureTitle}>{active.title}</Text><Text style={S.featureMeta}>{active.category||"Featured"}   ◇   {active.kind==="series"?"Series":"Movie"}</Text><Text style={S.dots}>●  ●  ●  ●  ●</Text>
    </>}
    <Label text="For You" action={()=>setTab("Discover")}/><Rail titles={movies.slice(0,18)} onSelect={x=>void open(x)}/>
@@ -128,11 +138,12 @@ function AppBody(){
    </View>}
    <Label text="Results"/>{searchBusy&&<ActivityIndicator color={C.magenta}/>}
    <View style={S.grid}>{results.filter(x=>!x.mature).map(i=><Poster key={i.id} item={i} onPress={()=>void open(i)} width={(W-45)/2}/>)}</View>
+   {!searchBusy&&results.length===0&&<Text style={S.sub}>No titles match these search filters.</Text>}
    {hasNext&&!searchBusy&&<Btn label="Load more" fill={C.panel} onPress={()=>void search(page+1)}/>}
   </ScrollView>}
   {tab==="Saved"&&<ScrollView contentContainerStyle={S.content}>
    <Text style={S.pageTitle}>My List</Text><Label text="Watch Later"/><View style={S.grid}>{Object.values(library.saved).map(i=><Poster key={i.id} item={i} width={(W-45)/2} onPress={()=>void open(i)}/>)}</View>
-   <Label text="Continue Watching"/>{Object.values(library.progress).filter(i=>!i.completed).sort((a,b)=>b.updatedAt-a.updatedAt).map((i,index)=><Pressable key={index} onPress={()=>{void open(i.title);}} style={S.episode}><Text style={S.episodeTitle}>{i.title.title} · {Math.round(i.position/(i.duration||1)*100)}%</Text><Text style={S.sub}>▶ Resume</Text></Pressable>)}
+   <Label text="Continue Watching"/>{Object.values(library.progress).filter(i=>!i.completed).sort((a,b)=>b.updatedAt-a.updatedAt).map((i,index)=><Pressable key={index} onPress={()=>{setData(null);play(i.title,i.season,i.episode);}} style={S.episode}><Text style={S.episodeTitle}>{i.title.title} · {Math.round(i.position/(i.duration||1)*100)}%</Text><Text style={S.sub}>▶ Resume</Text></Pressable>)}
    <Label text="Completed"/>{Object.values(library.progress).filter(i=>i.completed).map((i,index)=><Text key={index} style={S.sub}>{i.title.title}</Text>)}
   </ScrollView>}
   {tab==="Profile"&&<ScrollView contentContainerStyle={S.content}><Text style={S.pageTitle}>My PinFlix</Text><Text style={S.sub}>Streaming preferences and privacy</Text>

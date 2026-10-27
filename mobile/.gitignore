@@ -1,0 +1,9 @@
+node_modules/
+.expo/
+android/
+assets/icon.png
+android-smoke/
+preview-apk/
+release-build.log
+android-apk.sha256
+__pycache__/

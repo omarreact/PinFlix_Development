@@ -1,6 +1,7 @@
 package com.pincodeit.pinflix.source;
 
 import android.net.Uri;
+import android.util.Log;
 import androidx.annotation.NonNull;
 import com.facebook.react.bridge.Arguments;
 import com.facebook.react.bridge.Promise;
@@ -122,7 +123,8 @@ public final class PinFlixDirectModule extends ReactContextBaseJavaModule {
             for(String y:seenYears)years.pushInt(Integer.parseInt(y));
             WritableMap result=Arguments.createMap();
             result.putArray("items",out);result.putInt("page",page);
-            result.putBoolean("hasNext",items.size()>0&&q.isEmpty());
+            result.putBoolean("hasNext",items.size()>0&&q.isEmpty()&&
+                (!"series".equals(selected)||page==1||items.size()>=24));
             result.putBoolean("stale",false);
             result.putArray("years",years);
             result.putArray("categories",Arguments.createArray());
@@ -168,6 +170,7 @@ public final class PinFlixDirectModule extends ReactContextBaseJavaModule {
             ProviderClient.Stream stream=ProviderClient.playback(target,season,episode);
             // The legacy Java provider enforces the exact source host/port allowlist.
             if(!ProviderClient.allowedMedia(Uri.parse(stream.url)))throw new Exception("Media source is not approved");
+            Log.i("PinFlixDirect", "Resolved " + id + " episode " + episode + " as " + (stream.hls?"HLS":"MP4"));
             WritableMap out=Arguments.createMap();
             out.putString("status","ready");
             out.putString("message","");

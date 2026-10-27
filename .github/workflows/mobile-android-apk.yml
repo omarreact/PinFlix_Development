@@ -33,17 +33,52 @@ jobs:
       - uses: gradle/actions/setup-gradle@v4
       - name: Install project dependencies
         working-directory: mobile
-        run: npm install --no-audit --no-fund
+        run: npm ci --no-audit --no-fund
+      - name: Verify Android source and player code
+        working-directory: mobile
+        run: npm run check && npm run test:direct && npm run test:playback
       - name: Generate Android native project
         working-directory: mobile
         run: npx expo prebuild --platform android --clean --no-install
       - name: Build bundled release-preview APK
         working-directory: mobile/android
-        run: chmod +x gradlew && ./gradlew :app:assembleRelease --no-daemon --stacktrace
-      - name: Upload APK
+        run: |
+          chmod +x gradlew
+          set -o pipefail
+          ./gradlew :app:assembleRelease --no-daemon --stacktrace 2>&1 | tee ../release-build.log
+      - name: Record APK SHA-256
+        working-directory: mobile
+        run: sha256sum android/app/build/outputs/apk/release/*.apk > android-apk.sha256
+      - name: Upload versioned APK and build evidence
         uses: actions/upload-artifact@v4
         with:
-          name: PinFlix-Unified-Android-Preview
-          path: mobile/android/app/build/outputs/apk/release/*.apk
+          name: PinFlix-Android-Direct-2.0.3-Preview
+          path: |
+            mobile/android/app/build/outputs/apk/release/*.apk
+            mobile/android-apk.sha256
+            mobile/release-build.log
           retention-days: 14
           if-no-files-found: error
+  device-smoke:
+    needs: build
+    runs-on: ubuntu-24.04
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: PinFlix-Android-Direct-2.0.3-Preview
+          path: mobile/preview-apk
+      - uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 35
+          arch: x86_64
+          target: google_apis
+          script: cd mobile && python3 scripts/device_smoke.py "$(find preview-apk -name '*.apk' -print -quit)"
+      - name: Upload on-device report and screenshots
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: PinFlix-Android-Direct-2.0.3-Device-Smoke
+          path: mobile/android-smoke/
+          if-no-files-found: warn

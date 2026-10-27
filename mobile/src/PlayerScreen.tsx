@@ -37,7 +37,11 @@ export default function PlayerScreen({title,detail,season,episode,onClose,onNext
  return()=>{back.remove();void Orientation.unlockAsync().catch(()=>{});};},[onClose]);
  useEffect(()=>{
   const a=player.addListener("playingChange",ev=>setPlaying(ev.isPlaying));
-  const b=player.addListener("statusChange",ev=>{if(ev.status==="readyToPlay")setStatus("");if(ev.status==="loading")setStatus("Loading…");if(ev.status==="error"){setError("Video unavailable.");track("play_error",{id:title.id});}});
+  const b=player.addListener("statusChange",ev=>{if(ev.status==="readyToPlay")setStatus("");if(ev.status==="loading")setStatus("Loading…");if(ev.status==="error"){
+   const code=ev.error?.message.match(/(?:HTTP|response code)\s*(\d{3})\b/i)?.[1];
+   setStatus("");setError(code?`Media source returned HTTP ${code}.`:"Media could not be loaded. Check your connection and try again.");
+   track("play_error",{id:title.id});
+  }});
   const c=player.addListener("timeUpdate",ev=>{const p=Math.max(0,ev.currentTime);positionRef.current=p;setPosition(p);setDuration(player.duration||0);
    if(p-lastSaved.current>=10){lastSaved.current=p;progress(title,season,episode,p,player.duration||0);}
   });
@@ -75,9 +79,9 @@ export default function PlayerScreen({title,detail,season,episode,onClose,onNext
    }catch(e){if(active){setIntro(false);setStatus("");setError(e instanceof Error?e.message:"Playback unavailable.");}}
   };
   void start();
-  return()=>{active=false;introBegin.current=null;if(introTimer)clearTimeout(introTimer);progress(title,season,episode,positionRef.current,player.duration||0);};
+  return()=>{active=false;introBegin.current=null;if(introTimer)clearTimeout(introTimer);if(positionRef.current>0)progress(title,season,episode,positionRef.current,player.duration||0);};
  },[title.id,season,episode,player]);
- const close=()=>{progress(title,season,episode,positionRef.current,player.duration||0);player.pause();onClose();};
+ const close=()=>{if(positionRef.current>0)progress(title,season,episode,positionRef.current,player.duration||0);player.pause();onClose();};
  const choose=(name:"speed"|"quality"|"audio"|"subtitle")=>setPanel(panel===name?null:name);
  return <View style={s.root}>
   <StatusBar hidden/>

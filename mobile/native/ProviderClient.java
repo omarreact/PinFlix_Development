@@ -9,6 +9,7 @@ import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
 import org.jsoup.nodes.Element;
 import org.jsoup.select.Elements;
+import org.jsoup.parser.Parser;
 
 import java.io.ByteArrayOutputStream;
 import java.io.InputStream;
@@ -451,7 +452,13 @@ public final class ProviderClient {
             } catch (Exception ignored) {}
         }
         if (raw.trim().isEmpty()) throw new Exception("No playable media source supplied by the provider");
-        raw = raw.replace("\\/", "/").replace("\\u002F", "/");
+        // The legacy player writes HTML-escaped signed query strings inside JS.
+        // Decode only the extracted URL, preserving the original token bytes.
+        raw = Parser.unescapeEntities(raw, false)
+            .replace("\\/", "/")
+            .replace("\\u002F", "/")
+            .replace("\\u002f", "/")
+            .replace("\\u0026", "&");
         String mediaBase = raw.matches("(?i)^/?Data/.*")
             ? "http://103.136.200.124:8086/"
             : BASE + "/";
