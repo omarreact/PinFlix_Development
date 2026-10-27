@@ -69,6 +69,8 @@ jobs:
         with:
           name: PinFlix-Android-Direct-2.0.6-Preview
           path: mobile/preview-apk
+      - name: Enable Android emulator acceleration
+        run: sudo chmod 666 /dev/kvm
       - uses: reactivecircus/android-emulator-runner@v2
         with:
           api-level: 35
