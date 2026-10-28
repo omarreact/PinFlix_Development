@@ -2,7 +2,7 @@
 
 This Android APK is built by **GitHub Actions**, renders the same PinFlix responsive Next.js UI hosted on **Cloudflare Workers** and must make **no Vercel requests**.
 
-**Test URL:** https://pinflix-nextjs-test.farukkhanone.workers.dev/
+**Test URL:** https://pinflix-nextjs-preview.farukkhanone.workers.dev/
 
 The Cloudflare Worker is independently connected to the same `omarreact/PinFlix_Development` repository, tracking the development branch. The Vercel-hosted website remains independent; no production changes have been made. The Cloudflare test Worker may initially show an environment readiness page until the full vinext build succeeds.
 
