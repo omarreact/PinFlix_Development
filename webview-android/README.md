@@ -2,7 +2,7 @@
 
 This Android APK is built by **GitHub Actions**, renders the same PinFlix responsive Next.js UI hosted on **Cloudflare Workers** and must make **no Vercel requests**.
 
-**Test URL:** https://pinflix-nextjs-preview.farukkhanone.workers.dev/
+**Test URL:** https://pinflix-apk.pincodeit.com/
 
 The Cloudflare Worker is independently connected to the same `omarreact/PinFlix_Development` repository, tracking the development branch. The Vercel-hosted website remains independent; no production changes have been made. The Cloudflare test Worker may initially show an environment readiness page until the full vinext build succeeds.
 
@@ -17,3 +17,7 @@ The workflow `.github/workflows/pinflix-webview-android.yml` builds a debug-sign
 ## Test
 
 Install alongside the native APK (different package ID). Open home, search, movie, episode details; verify full-screen/Back, HTTP media fetches and app not closing unexpectedly. Confirm device network logs contain no requests to `*.vercel.app` or `pin-flix.pincodeit.com`; if a site API references Vercel, remove it from the Cloudflare deployment before publication.
+
+## Vercel DNS custom domain
+
+Vercel's authoritative DNS for pincodeit.com has the verified record `pinflix-apk CNAME pinflix-apk-gateway.pages.dev` (TTL 60). The Cloudflare Pages project `pinflix-apk-gateway` exposes that external-DNS hostname; its Pages Function uses `PINFLIX_APP` service binding to the Next.js Worker `pinflix-nextjs-preview`. The APK loads only `https://pinflix-apk.pincodeit.com/`, never the Vercel website. The Cloudflare zone for pincodeit.com is pending and not authoritative; do not change nameservers.
