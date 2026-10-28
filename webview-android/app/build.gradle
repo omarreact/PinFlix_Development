@@ -15,8 +15,8 @@ android {
   applicationId 'com.pincodeit.pinflix.webview'
   minSdk 24
   targetSdk 35
-  versionCode 2
-  versionName '1.3.0-webview'
+  versionCode 3
+  versionName '1.4.0-webview'
   buildConfigField 'String','PINFLIX_WEB_URL','"' + requested + '"'
  }
  buildTypes {
