@@ -65,7 +65,8 @@ jobs:
       - run: sudo chmod 666 /dev/kvm
       - uses: reactivecircus/android-emulator-runner@v2
         with:
-          api-level: 35
+          api-level: 34
+          emulator-options: -no-window -gpu swiftshader_indirect -no-snapshot -noaudio -no-boot-anim -memory 2048 -feature -Vulkan
           target: google_apis
           arch: x86_64
           emulator-boot-timeout: 600
@@ -74,7 +75,8 @@ jobs:
             adb install -r apk-output/PinFlix-CineplexBD-WebView-v1.5.apk
             adb install -r apk-output/instrumentation.apk
             adb logcat -c
-            adb shell am instrument -w -r com.pincodeit.pinflix.webview.direct.test/androidx.test.runner.AndroidJUnitRunner > android-evidence/tests.txt
+            adb logcat -v threadtime > android-evidence/logcat-live.txt 2>&1 < /dev/null &
+            sh -c 'adb shell am instrument -w -r com.pincodeit.pinflix.webview.direct.test/androidx.test.runner.AndroidJUnitRunner > android-evidence/tests.txt; status=$?; cat android-evidence/tests.txt; adb logcat -d -b crash > android-evidence/crash.txt; exit "$status"'
             cat android-evidence/tests.txt
             grep -q 'OK (3 tests)' android-evidence/tests.txt
             adb shell am start -W -n com.pincodeit.pinflix.webview.direct/com.pincodeit.pinflix.webview.MainActivity

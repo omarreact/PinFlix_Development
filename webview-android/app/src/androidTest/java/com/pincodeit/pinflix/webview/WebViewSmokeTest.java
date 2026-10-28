@@ -85,7 +85,10 @@ public class WebViewSmokeTest {
  @Test public void mp4HlsDashAndFullscreenBack()throws Exception{
   openPlayer();
   for(int n=0;n<3;n++){
+   System.out.println("PLAYBACK_FORMAT="+new String[]{"mp4","hls","dash"}[n]);
+   eval("window.previousVideo=document.querySelector('video')");
    eval("(()=>{const s=document.querySelector('[aria-label=\"Playback quality\"]');s.value='"+n+"';s.dispatchEvent(new Event('change',{bubbles:true}));})()");
+   if(n>0)waitJs("!!document.querySelector('video') && document.querySelector('video')!==window.previousVideo",10000);
    waitJs("!!document.querySelector('video') && document.querySelector('video').readyState>=1",30000);
    eval("(()=>{const v=document.querySelector('video');v.muted=true;v.currentTime=0;v.play().catch(e=>window.playFailure=e.message);})()");
    waitJs("document.querySelector('video').currentTime>0.1",20000);
