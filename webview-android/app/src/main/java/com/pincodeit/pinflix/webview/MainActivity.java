@@ -43,9 +43,7 @@ public final class MainActivity extends Activity {
     private boolean mainFrameFailed;
 
     private static boolean isWebHost(String host) {
-        return "pin-flix.pincodeit.com".equals(host)
-            || "pinflix.pincodeit.com".equals(host)
-            || "pinflix.akogs-fashion.com".equals(host);
+        return "pinflix-nextjs-test.farukkhanone.workers.dev".equals(host);
     }
 
     private static boolean canUseHttp(Uri uri) {
@@ -55,7 +53,7 @@ public final class MainActivity extends Activity {
         host = host.toLowerCase(Locale.ROOT);
         int port = uri.getPort();
         if ("cineplexbd.net".equals(host) || "cds3.cineplexbd.net".equals(host)
-                || isWebHost(host)) return port == -1 || port == 80;
+                ) return port == -1 || port == 80;
         if ("vod.cineplexbd.net".equals(host)) return port == 8081;
         if ("103.136.200.124".equals(host)) return port == 8081 || port == 8086;
         return false;
