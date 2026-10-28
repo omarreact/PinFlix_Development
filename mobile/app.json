@@ -1,0 +1,62 @@
+{
+  "expo": {
+    "name": "PinFlix",
+    "slug": "pinflix-mobile",
+    "scheme": "pinflix",
+    "version": "2.0.9",
+    "orientation": "default",
+    "userInterfaceStyle": "dark",
+    "ios": {
+      "bundleIdentifier": "com.pincodeit.pinflix.mobile",
+      "supportsTablet": true,
+      "infoPlist": {
+        "NSLocationWhenInUseUsageDescription": "PinFlix uses your approximate location only when you choose regional suggestions."
+      }
+    },
+    "android": {
+      "package": "com.pincodeit.pinflix.mobile",
+      "permissions": [
+        "INTERNET",
+        "POST_NOTIFICATIONS",
+        "ACCESS_COARSE_LOCATION"
+      ],
+      "blockedPermissions": [
+        "android.permission.ACCESS_FINE_LOCATION",
+        "android.permission.ACCESS_BACKGROUND_LOCATION"
+      ],
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/icon.png",
+        "backgroundColor": "#0A0818"
+      },
+      "versionCode": 10
+    },
+    "plugins": [
+      [
+        "expo-video",
+        {
+          "supportsBackgroundPlayback": true,
+          "supportsPictureInPicture": true
+        }
+      ],
+      "expo-notifications",
+      "expo-screen-orientation",
+      [
+        "expo-location",
+        {
+          "locationWhenInUsePermission": "Allow PinFlix to use your approximate location only when you choose regional suggestions.",
+          "isIosBackgroundLocationEnabled": false,
+          "isAndroidBackgroundLocationEnabled": false,
+          "isAndroidForegroundServiceEnabled": false
+        }
+      ],
+      "./plugins/withCineplexMedia"
+    ],
+    "extra": {
+      "androidSourceMode": "direct-native-v1"
+    },
+    "updates": {
+      "enabled": false
+    },
+    "icon": "./assets/icon.png"
+  }
+}

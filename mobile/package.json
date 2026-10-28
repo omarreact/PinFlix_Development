@@ -1,0 +1,35 @@
+{
+  "name": "pinflix-mobile",
+  "version": "2.0.0",
+  "private": true,
+  "main": "node_modules/expo/AppEntry.js",
+  "scripts": {
+    "start": "expo start",
+    "android": "expo run:android",
+    "ios": "expo run:ios",
+    "check": "tsc --noEmit",
+    "postinstall": "node scripts/build-brand.cjs",
+    "test:playback": "tsx --test src/legacy-source.test.ts",
+    "test:direct": "tsx --test src/api-direct.test.ts"
+  },
+  "dependencies": {
+    "expo": "~54.0.38",
+    "react": "19.1.0",
+    "react-native": "0.81.5",
+    "expo-video": "~3.0.16",
+    "expo-linear-gradient": "~15.0.8",
+    "expo-notifications": "~0.32.17",
+    "expo-screen-orientation": "~9.0.9",
+    "expo-constants": "~18.0.13",
+    "@react-native-async-storage/async-storage": "2.2.0",
+    "@react-native-community/slider": "5.0.1",
+    "react-native-safe-area-context": "~5.6.0",
+    "expo-location": "~19.0.8"
+  },
+  "devDependencies": {
+    "typescript": "~5.9.2",
+    "@types/react": "~19.1.10",
+    "sharp": "0.35.5",
+    "tsx": "^4.20.6"
+  }
+}

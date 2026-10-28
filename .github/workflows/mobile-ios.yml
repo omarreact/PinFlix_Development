@@ -1,0 +1,38 @@
+name: Validate PinFlix iOS simulator build
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'mobile/**'
+      - '.github/workflows/mobile-ios.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: pinflix-ios-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  ios:
+    runs-on: macos-15
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install dependencies
+        working-directory: mobile
+        run: npm install --no-audit --no-fund
+      - name: Generate iOS project
+        working-directory: mobile
+        run: npx expo prebuild --platform ios --clean --no-install
+      - name: Install native pods
+        working-directory: mobile/ios
+        run: pod install --repo-update
+      - name: Validate unsigned iOS Simulator compilation
+        working-directory: mobile
+        run: |
+          workspace=$(find ios -maxdepth 1 -name '*.xcworkspace' | head -n 1)
+          test -n "$workspace"
+          scheme=$(basename "$workspace" .xcworkspace)
+          xcodebuild -workspace "$workspace" -scheme "$scheme" -configuration Debug -sdk iphonesimulator -destination 'generic/platform=iOS Simulator' CODE_SIGNING_ALLOWED=NO build > /tmp/pinflix-ios.log 2>&1 || { tail -150 /tmp/pinflix-ios.log; exit 1; }
