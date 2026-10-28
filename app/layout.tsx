@@ -6,6 +6,7 @@ import { LibrarySyncProvider } from "@/components/library-sync";
 import { spotlightInter, spotlightMarker, spotlightSyne } from "@/lib/fonts";
 import "./globals.css";
 import "./universal.css";
+import "./midnight-cinema.css";
 export const metadata: Metadata = {
   title: { default: "PinFlix — A world of stories", template: "%s · PinFlix" },
   description:
