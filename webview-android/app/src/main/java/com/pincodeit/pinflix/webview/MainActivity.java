@@ -43,7 +43,7 @@ public final class MainActivity extends Activity {
     private boolean mainFrameFailed;
 
     private static boolean isWebHost(String host) {
-        return "pinflix-nextjs-test.farukkhanone.workers.dev".equals(host);
+        return "pinflix-nextjs-preview.farukkhanone.workers.dev".equals(host);
     }
 
     private static boolean canUseHttp(Uri uri) {
