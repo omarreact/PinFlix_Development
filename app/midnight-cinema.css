@@ -141,3 +141,46 @@
  .unv-results-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
 }
 @media(prefers-reduced-motion:reduce){.mb-movie-card,.mb-category-tile{transition:none}}
+
+/* Extend the same design to movie detail, library and playback routes. */
+:root {
+ --bg:#090e19; --surface:#111c2b; --text:#f4f8ff;
+ --muted:#a2b1c6; --accent:28,210,200;
+ --line:rgba(162,195,220,.14);
+}
+body {background:#090e19;color:#f4f8ff}
+.header,.header-solid {background:rgba(8,16,28,.96);border-bottom-color:#294056}
+.brand > span:not(.brand-mark),.brand-accent {color:#35decc}
+.brand > i {background:#35decc}
+.brand-mark {background:linear-gradient(135deg,#0e7cab,#31e0bc);border-color:#2286a2;color:#071923;transform:none}
+.nav-links a:hover,.nav-links a[aria-current="page"] {color:#38ddce}
+.search-trigger,.profile-dropdown {background:#1a283a;border-color:#294158}
+.avatar {background:#153950;border-color:#277786;color:#e1fff8}
+.hero {background:#0c1828}
+.hero-shade {background:linear-gradient(90deg,#090e19 0%,#090e19d9 38%,#090e1990 74%,#090e192e 100%)}
+.hero-copy h1,.detail-copy h1 {color:#f3f9ff}
+.hero .eyebrow,.detail-copy .eyebrow,.section .eyebrow {color:#43dbc9}
+.primary,.actions .primary,.button.primary {background:#21d0c5;color:#051e28;border-radius:10px;font-weight:800}
+.primary:hover,.actions .primary:hover {background:#62e8d7;color:#06202b}
+.secondary,.button.secondary,.icon-button {background:#1b2e42;color:#e4efff;border-color:#33546a}
+.secondary:hover,.icon-button:hover {background:#2a435b;color:white}
+.detail-hero {background:#0e1d2d}
+.detail-art img {opacity:.82}
+.detail-copy {background:linear-gradient(90deg,#0a101ee0,transparent)}
+.card-art {background:#1d3044;border-radius:10px;overflow:hidden}
+.card:hover .card-art {outline:2px solid #23d3c7}
+.card h3,.section-heading h2 {color:#f5f9ff}
+.card p,.footer p,.availability-note {color:#a2b5c5}
+.footer {border-top-color:#22384b}
+.footer .brand-accent {color:#26d9c6}
+.player-top {background:linear-gradient(#071421e8,transparent)}
+.player-controls {background:linear-gradient(transparent,#071421f3)}
+.player-surface,.player-frame {background:#02060c}
+.player-controls input[type="range"],.player-frame input[type="range"] {accent-color:#24d8ca}
+@media(max-width:600px){
+ .header{min-height:60px}
+ .hero{height:auto;min-height:500px}
+ .hero-art{width:100%;opacity:.75}
+ .detail-copy{padding:25px 17px}
+ .detail-hero{min-height:380px}
+}
