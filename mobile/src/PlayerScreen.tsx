@@ -1,4 +1,4 @@
-import React,{useEffect,useRef,useState} from "react";
+import React,{useCallback,useEffect,useRef,useState} from "react";
 import {ActivityIndicator,Alert,Animated,BackHandler,Dimensions,Image,Pressable,ScrollView,StatusBar,StyleSheet,Text,View} from "react-native";
 import Slider from "@react-native-community/slider";
 import {useVideoPlayer,VideoView} from "expo-video";
@@ -28,14 +28,34 @@ export default function PlayerScreen({title,detail,season,episode,onClose,onNext
  const [panel,setPanel]=useState<"speed"|"quality"|"audio"|"subtitle"|null>(null);
  const [resumed,setResumed]=useState(0);
  const positionRef=useRef(0),lastSaved=useRef(0);
+ const mountedRef=useRef(true);
+ const exitingRef=useRef(false);
+ const closeRef=useRef(onClose);
+ closeRef.current=onClose;
  const introBegin=useRef<(()=>void)|null>(null);
  const introScale=useRef(new Animated.Value(.65)).current;
  const episodeList=detail?.episodes||[];
  const idx=episodeList.findIndex(e=>e.number===episode);
  const next=idx>=0?episodeList[idx+1]:undefined;
- useEffect(()=>{void Orientation.lockAsync(Orientation.OrientationLock.LANDSCAPE).catch(()=>{});
- const back=BackHandler.addEventListener("hardwareBackPress",()=>{onClose();return true;});
- return()=>{back.remove();void Orientation.unlockAsync().catch(()=>{});};},[onClose]);
+ // Subscribe once. Re-subscribing when the parent rerenders previously caused
+ // repeated unlock/lock cycles while the player was open (including on progress writes).
+ const leave=useCallback(()=>{
+   if(exitingRef.current)return;
+   exitingRef.current=true;
+   try{player.pause();}catch{}
+   if(positionRef.current>0)progress(title,season,episode,positionRef.current,player.duration||0);
+   // Return to detail in the SAME Activity; restore portrait before unmounting video.
+   void Orientation.lockAsync(Orientation.OrientationLock.PORTRAIT_UP)
+    .catch(()=>{})
+    .finally(()=>closeRef.current());
+ },[player,title,season,episode]);
+ const leaveRef=useRef(leave);leaveRef.current=leave;
+ useEffect(()=>{
+   mountedRef.current=true;
+   void Orientation.lockAsync(Orientation.OrientationLock.LANDSCAPE).catch(()=>{});
+   const back=BackHandler.addEventListener("hardwareBackPress",()=>{leaveRef.current();return true;});
+   return()=>{mountedRef.current=false;back.remove();};
+ },[]);
  useEffect(()=>{
   const a=player.addListener("playingChange",ev=>setPlaying(ev.isPlaying));
   const b=player.addListener("statusChange",ev=>{if(ev.status==="readyToPlay")setStatus("");if(ev.status==="loading")setStatus("Loading…");if(ev.status==="error"){
@@ -58,8 +78,9 @@ export default function PlayerScreen({title,detail,season,episode,onClose,onNext
     if(data.status!=="ready"||!data.url)throw Error(data.message||"Playback not available.");
     const url=data.url;
     const begin=async()=>{
+     try{
      await player.replaceAsync({uri:url,contentType:data.format==="hls"?"hls":"progressive",...(data.transport==="direct"?{headers:data.headers}:{})});
-     if(!active)return;
+     if(!active||exitingRef.current)return;
      const previous=lastPosition(title.id,season,episode);
      if(previous>15){player.currentTime=previous;setResumed(previous);}
      player.playbackRate=speed;
@@ -68,6 +89,7 @@ export default function PlayerScreen({title,detail,season,episode,onClose,onNext
      player.showNowPlayingNotification=read().preferences.background;
      player.play();
      track("play_started",{id:title.id,kind:title.kind});
+     }catch(err){if(active&&!exitingRef.current){setStatus("");setError(err instanceof Error?err.message:"Video unavailable.");}}
     };
     let begun=false;
     introBegin.current=()=>{if(begun)return;begun=true;setIntro(false);void begin();};
@@ -82,11 +104,11 @@ export default function PlayerScreen({title,detail,season,episode,onClose,onNext
   void start();
   return()=>{active=false;introBegin.current=null;if(introTimer)clearTimeout(introTimer);if(positionRef.current>0)progress(title,season,episode,positionRef.current,player.duration||0);};
  },[title.id,season,episode,player]);
- const close=()=>{if(positionRef.current>0)progress(title,season,episode,positionRef.current,player.duration||0);player.pause();onClose();};
+ const close=()=>leaveRef.current();
  const choose=(name:"speed"|"quality"|"audio"|"subtitle")=>setPanel(panel===name?null:name);
  return <View style={s.root}>
   <StatusBar hidden/>
-  <VideoView ref={videoView} player={player} style={StyleSheet.absoluteFill} nativeControls={false} allowsFullscreen allowsPictureInPicture startsPictureInPictureAutomatically contentFit={fit}/>
+  <VideoView ref={videoView} player={player} style={StyleSheet.absoluteFill} nativeControls={false} allowsFullscreen allowsPictureInPicture contentFit={fit}/>
   <Pressable style={StyleSheet.absoluteFill} onPress={()=>setShow(!show)}/>
   {intro&&<View style={s.intro}><Animated.View style={{alignItems:"center",transform:[{scale:introScale}]}}><Image source={require("../assets/icon.png")} style={{width:116,height:116,borderRadius:23}}/><Text style={s.brand}>PinFlix</Text></Animated.View><Text style={s.credit}>{CREDIT}</Text><Btn label="Skip intro" onPress={()=>introBegin.current?.()}/></View>}
   {!!status&&!intro&&<View pointerEvents="none" style={s.center}><ActivityIndicator color={C.magenta}/><Text style={s.sub}>{status}</Text></View>}
