@@ -310,7 +310,7 @@ export function UniversalSearch({
           <div className="mb-browse-tabs" role="group" aria-label="Quick content navigation">
             {([["","Trending"],["series","TV/Series"],["movie","Movies"]] as const).map(([value,label])=>
               <button key={label} className={kind===value?"is-active":""} onClick={()=>pickKind(value)}>{label}</button>)}
-            <button onClick={()=>{setPreset("animation");setKind("");}}>Anime</button>
+            <button onClick={()=>{pickKind("");setPreset("animation");}}>Anime</button>
             <Link href="/my-list/">My List <Bookmark size={14}/></Link>
           </div>
 
@@ -320,7 +320,7 @@ export function UniversalSearch({
               {[...new Map(data.categories.filter(c=>!c.mature).map(c=>[c.name.toLowerCase(),c])).values()].slice(0,9)
                 .map((c,index)=><button key={c.kind+c.name}
                   className={"mb-category-tile mb-category-"+index%5}
-                  onClick={()=>pickCategory(c.name,c.kind)}>
+                  onClick={()=>pickCategory(c.kind,c.name)}>
                   <span>{c.name}</span><ArrowRight size={17}/>
                 </button>)}
             </div>
