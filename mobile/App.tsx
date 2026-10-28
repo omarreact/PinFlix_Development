@@ -94,8 +94,11 @@ function AppBody(){
  // The Android hardware Back key is in-app navigation, never an Activity exit
  // when a title or an internal tab is open.
  useEffect(()=>{
+  // The PlayerScreen must be the only hardware-Back subscriber while playing.
+  // React can mount parent passive effects after child effects, so an active
+  // parent listener would swallow Back before the player's leave handler.
+  if(player)return;
   const sub=BackHandler.addEventListener("hardwareBackPress",()=>{
-   if(player)return true; // PlayerScreen owns back and orientation cleanup
    if(selected){closeDetail();return true;}
    if(intro){setIntro(false);return true;}
    if(tab!=="Home"){setTab("Home");return true;}
