@@ -34,8 +34,11 @@ import java.util.Collections;
 import java.util.Locale;
 
 public final class MainActivity extends Activity {
-    private static final String HOME = BuildConfig.PINFLIX_WEB_URL;
+    private static final String HOME = "https://appassets.androidplatform.net/";
     private WebView browser;
+    private NativeApi api;
+    WebView browserForTest() { return browser; }
+    boolean isFullscreenForTest() { return fullScreenView != null; }
     private FrameLayout frame;
     private LinearLayout errorView;
     private ProgressBar loadingBar;
@@ -45,7 +48,7 @@ public final class MainActivity extends Activity {
     private boolean mainFrameFailed;
 
     private static boolean isWebHost(String host) {
-        return "pinflix-apk.pincodeit.com".equals(host);
+        return "appassets.androidplatform.net".equals(host);
     }
 
     private static boolean canUseHttp(Uri uri) {
@@ -75,9 +78,12 @@ public final class MainActivity extends Activity {
         getWindow().setStatusBarColor(Color.rgb(9,14,25));
         getWindow().setNavigationBarColor(Color.rgb(9,14,25));
         frame = new FrameLayout(this);
+        frame.setFitsSystemWindows(true);
         browser = new WebView(this);
+        api = new NativeApi(this);
         browser.setBackgroundColor(Color.rgb(9,14,25));
         browser.setOverScrollMode(View.OVER_SCROLL_NEVER);
+        browser.setKeepScreenOn(true);
         browser.setScrollBarStyle(View.SCROLLBARS_INSIDE_OVERLAY);
 
         WebSettings settings = browser.getSettings();
@@ -90,9 +96,8 @@ public final class MainActivity extends Activity {
         settings.setAllowFileAccess(false);
         settings.setAllowContentAccess(false);
         settings.setSupportMultipleWindows(false);
-        // Required only where HTTPS web playback references HTTP media.
-        // The interception and network XML below restrict cleartext hosts.
-        settings.setMixedContentMode(WebSettings.MIXED_CONTENT_ALWAYS_ALLOW);
+        // All remote requests are mediated by NativeApi; the WebView stays on its bundled HTTPS origin.
+        settings.setMixedContentMode(WebSettings.MIXED_CONTENT_NEVER_ALLOW);
         settings.setCacheMode(WebSettings.LOAD_DEFAULT);
         // Reset stale pre-fix placeholder HTML once after upgrading to 1.4.
         if(getSharedPreferences("pinflix_webview",MODE_PRIVATE).getInt("cache_schema",0)<14) {
@@ -108,21 +113,11 @@ public final class MainActivity extends Activity {
                 if (!req.isForMainFrame()) return false;
                 Uri url = req.getUrl();
                 if (isInternal(url)) return false;
-                String scheme = url.getScheme();
-                if ("https".equalsIgnoreCase(scheme) || "http".equalsIgnoreCase(scheme)) {
-                    try {startActivity(new Intent(Intent.ACTION_VIEW,url));} catch (Exception ignored) {}
-                }
                 return true;
             }
 
             @Override public WebResourceResponse shouldInterceptRequest(WebView view, WebResourceRequest req) {
-                Uri url = req.getUrl();
-                if ("http".equalsIgnoreCase(url.getScheme()) && !canUseHttp(url)) {
-                    return new WebResourceResponse("text/plain","UTF-8",403,"Unapproved HTTP source",
-                        Collections.singletonMap("Cache-Control","no-store"),
-                        new ByteArrayInputStream("Blocked unapproved HTTP resource".getBytes(StandardCharsets.UTF_8)));
-                }
-                return null;
+                return api.handle(req);
             }
 
             @Override public void onPageStarted(WebView view, String url, Bitmap favicon) {
@@ -229,14 +224,20 @@ public final class MainActivity extends Activity {
 
     @Override public void onBackPressed() {
         if(fullScreenView!=null){leaveFullscreen();return;}
-        if(browser.canGoBack()){browser.goBack();return;}
-        String current=browser.getUrl();
-        if(current!=null && !current.equals(HOME)){browser.loadUrl(HOME);return;}
-        new AlertDialog.Builder(this).setTitle("Exit PinFlix?")
-            .setMessage("Do you want to close PinFlix?")
-            .setNegativeButton("Stay",(d,w)->d.dismiss())
-            .setPositiveButton("Exit",(d,w)->finish()).show();
+        browser.evaluateJavascript("window.pinflixBack ? window.pinflixBack() : false", result -> {
+            if ("true".equals(result)) return;
+            if(browser.canGoBack()){browser.goBack();return;}
+            new AlertDialog.Builder(this).setTitle("Exit PinFlix?")
+                .setMessage("Do you want to close PinFlix?")
+                .setNegativeButton("Stay", null).setPositiveButton("Exit", (d,w)->finish()).show();
+        });
     }
+
+    @Override protected void onPause() {
+        if(browser!=null){browser.evaluateJavascript("document.querySelectorAll(\"video\").forEach(v=>v.pause())",null);browser.onPause();}
+        super.onPause();
+    }
+    @Override protected void onResume(){super.onResume();if(browser!=null)browser.onResume();}
 
     @Override public void onSaveInstanceState(Bundle state) {
         if(browser!=null)browser.saveState(state);
@@ -256,3 +257,4 @@ public final class MainActivity extends Activity {
         super.onDestroy();
     }
 }
+

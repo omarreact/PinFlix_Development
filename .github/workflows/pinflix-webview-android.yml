@@ -1,94 +1,88 @@
-name: Build PinFlix Next.js WebView APK
+name: PinFlix Direct WebView APK
 on:
-  pull_request:
-    branches: [main]
-    paths:
-      - 'webview-android/**'
-      - '.github/workflows/pinflix-webview-android.yml'
+  push:
+    branches: ['feat/pinflix-direct-webview-v1-5-20261028']
+    paths: ['webview-android/**', '.github/workflows/pinflix-webview-android.yml']
   workflow_dispatch:
 permissions:
   contents: read
 concurrency:
-  group: pinflix-webview-android
+  group: pinflix-direct-webview-${{ github.ref }}
   cancel-in-progress: true
 jobs:
   build:
     runs-on: ubuntu-24.04
-    timeout-minutes: 30
+    timeout-minutes: 25
     steps:
       - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: {node-version: '24'}
+      - name: Bundle the shared PinFlix UI
+        working-directory: webview-android/web
+        run: |
+          npm install --ignore-scripts --no-audit --no-fund
+          npx tsc --noEmit
+          npm run build
       - uses: actions/setup-java@v4
-        with:
-          distribution: temurin
-          java-version: '17'
+        with: {distribution: temurin, java-version: '17'}
       - uses: gradle/actions/setup-gradle@v4
-        with:
-          gradle-version: '8.12.1'
-      - name: Install Android SDK 35
+        with: {gradle-version: '8.12.1'}
+      - name: Install Android SDK
         run: |
           SDKMANAGER=$(find "${ANDROID_HOME}/cmdline-tools" -type f -name sdkmanager | sort -V | tail -1)
-          test -n "$SDKMANAGER"
           "$SDKMANAGER" --install 'platforms;android-35' 'build-tools;35.0.0'
-      - name: Check wrapper security and navigation
+      - name: Build app and instrumentation APKs
         working-directory: webview-android
-        run: python3 scripts/check_wrapper.py
-      - name: Build debug-signed WebView APK
-        working-directory: webview-android
-        run: gradle --no-daemon :app:assembleDebug --stacktrace
-      - name: Verify package and signature
+        run: gradle --no-daemon :app:assembleDebug :app:assembleDebugAndroidTest --stacktrace
+      - name: Verify and collect APK
         run: |
-          APK=webview-android/app/build/outputs/apk/debug/app-debug.apk
-          test -s "$APK"
-          "${ANDROID_HOME}/build-tools/35.0.0/apksigner" verify --verbose "$APK"
-          "${ANDROID_HOME}/build-tools/35.0.0/aapt" dump badging "$APK" | head -10
-          sha256sum "$APK" | tee webview-android/apk-sha256.txt
-      - name: Publish WebView APK
-        uses: actions/upload-artifact@v4
-        with:
-          name: PinFlix-NextJS-WebView-Android-Preview
-          path: |
-            webview-android/app/build/outputs/apk/debug/app-debug.apk
-            webview-android/apk-sha256.txt
-          retention-days: 21
-          if-no-files-found: error
-
-  android-device-smoke:
+          mkdir -p apk-output
+          cp webview-android/app/build/outputs/apk/debug/app-debug.apk apk-output/PinFlix-CineplexBD-WebView-v1.5.apk
+          cp webview-android/app/build/outputs/apk/androidTest/debug/app-debug-androidTest.apk apk-output/instrumentation.apk
+          "${ANDROID_HOME}/build-tools/35.0.0/apksigner" verify --verbose apk-output/PinFlix-CineplexBD-WebView-v1.5.apk > apk-output/signature.txt
+          "${ANDROID_HOME}/build-tools/35.0.0/aapt" dump badging apk-output/PinFlix-CineplexBD-WebView-v1.5.apk > apk-output/package.txt
+          sha256sum apk-output/PinFlix-CineplexBD-WebView-v1.5.apk > apk-output/sha256.txt
+          python3 - <<'PY'
+          import zipfile
+          with zipfile.ZipFile('apk-output/PinFlix-CineplexBD-WebView-v1.5.apk') as z:
+              assert any(n.startswith('assets/web/') for n in z.namelist())
+              assert not any('sample.mp4' in n or '/media/' in n for n in z.namelist())
+              for n in z.namelist():
+                  if n.startswith('assets/web/'):
+                      data=z.read(n)
+                      assert b'vercel.app' not in data and b'pinflix-apk.pincodeit.com' not in data
+          PY
+      - uses: actions/upload-artifact@v4
+        with: {name: PinFlix-CineplexBD-WebView-v1.5, path: apk-output/, retention-days: 21, if-no-files-found: error}
+  emulator:
     needs: build
     runs-on: ubuntu-24.04
-    timeout-minutes: 28
+    timeout-minutes: 25
     steps:
       - uses: actions/checkout@v4
       - uses: actions/download-artifact@v4
-        with:
-          name: PinFlix-NextJS-WebView-Android-Preview
-          path: webview-apk
-      - name: Enable hardware acceleration
-        run: sudo chmod 666 /dev/kvm
-      - name: Cold launch and Android Back smoke
-        uses: reactivecircus/android-emulator-runner@v2
+        with: {name: PinFlix-CineplexBD-WebView-v1.5, path: apk-output}
+      - run: sudo chmod 666 /dev/kvm
+      - uses: reactivecircus/android-emulator-runner@v2
         with:
           api-level: 35
           target: google_apis
           arch: x86_64
           emulator-boot-timeout: 600
           script: |
-            mkdir -p webview-device-evidence
-            adb install -r webview-apk/app/build/outputs/apk/debug/app-debug.apk
+            mkdir -p android-evidence
+            adb install -r apk-output/PinFlix-CineplexBD-WebView-v1.5.apk
+            adb install -r apk-output/instrumentation.apk
             adb logcat -c
-            adb shell am start -W -n com.pincodeit.pinflix.webview/.MainActivity
-            sleep 28
-            adb shell pidof com.pincodeit.pinflix.webview
-            adb exec-out screencap -p > webview-device-evidence/screen.png
-            adb logcat -d -b crash > webview-device-evidence/android-crash.txt
-            ! grep -q 'com.pincodeit.pinflix.webview' webview-device-evidence/android-crash.txt
-            adb shell input keyevent KEYCODE_BACK
-            sleep 3
-            adb shell pidof com.pincodeit.pinflix.webview
-            adb exec-out screencap -p > webview-device-evidence/back.png
-      - name: Publish Android screen and crash evidence
+            adb shell am instrument -w -r com.pincodeit.pinflix.webview.direct.test/androidx.test.runner.AndroidJUnitRunner > android-evidence/tests.txt
+            cat android-evidence/tests.txt
+            grep -q 'OK (3 tests)' android-evidence/tests.txt
+            adb shell am start -W -n com.pincodeit.pinflix.webview.direct/com.pincodeit.pinflix.webview.MainActivity
+            sleep 12
+            adb shell pidof com.pincodeit.pinflix.webview.direct
+            adb exec-out screencap -p > android-evidence/screen.png
+            adb logcat -d -b crash > android-evidence/crash.txt
+            ! grep -q 'FATAL EXCEPTION' android-evidence/crash.txt
+      - uses: actions/upload-artifact@v4
         if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: PinFlix-WebView-v1.4-Device-Smoke
-          path: webview-device-evidence/
-          retention-days: 14
+        with: {name: PinFlix-Direct-v1.5-Android-Checks, path: android-evidence/, retention-days: 14}
