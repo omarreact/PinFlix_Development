@@ -46,13 +46,16 @@ jobs:
           chmod +x gradlew
           set -o pipefail
           ./gradlew :app:assembleRelease --no-daemon --stacktrace 2>&1 | tee ../release-build.log
+      - name: Verify packaged Android app uses only native provider
+        working-directory: mobile
+        run: python3 scripts/audit_android_apk.py android/app/build/outputs/apk/release/app-release.apk
       - name: Record APK SHA-256
         working-directory: mobile
         run: sha256sum android/app/build/outputs/apk/release/*.apk > android-apk.sha256
       - name: Upload versioned APK and build evidence
         uses: actions/upload-artifact@v4
         with:
-          name: PinFlix-Android-Direct-2.0.8-Preview
+          name: PinFlix-Android-Direct-2.0.9-Preview
           path: |
             mobile/android/app/build/outputs/apk/release/*.apk
             mobile/android-apk.sha256
@@ -71,7 +74,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/download-artifact@v4
         with:
-          name: PinFlix-Android-Direct-2.0.8-Preview
+          name: PinFlix-Android-Direct-2.0.9-Preview
           path: mobile/preview-apk
       - name: Enable emulator hardware acceleration
         run: sudo chmod 666 /dev/kvm
@@ -97,7 +100,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/download-artifact@v4
         with:
-          name: PinFlix-Android-Direct-2.0.8-Preview
+          name: PinFlix-Android-Direct-2.0.9-Preview
           path: mobile/preview-apk
       - name: Enable Android emulator acceleration
         run: sudo chmod 666 /dev/kvm
