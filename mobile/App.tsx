@@ -45,6 +45,7 @@ function AppBody(){
  const [detailError,setDetailError]=useState("");
  const [player,setPlayer]=useState<{title:Title;season:number;episode:number}|null>(null);
  const [loading,setLoading]=useState(true),[error,setError]=useState("");
+ const [reloadKey,setReloadKey]=useState(0);
  const [query,setQuery]=useState(""),[kind,setKind]=useState("all"),[filter,setFilter]=useState(""),[sort,setSort]=useState("recent");
  const [language,setLanguage]=useState(""),[year,setYear]=useState(""),[quality,setQuality]=useState("");
  const [filterOpen,setFilterOpen]=useState(false);
@@ -56,19 +57,34 @@ function AppBody(){
  useEffect(()=>{
   void hydrate();const unsub=watch(setLibrary);
   void AsyncStorage.getItem("pinflix-intro-done").then(x=>{if(x!=="1")setIntro(true);});
-  const load=async()=>{
-   try{
-    const [m,s]=await Promise.all([catalogue({kind:"movie",page:1}),catalogue({kind:"series",page:1})]);
-    setMovies(m.items.filter(x=>!x.mature));
-    setSeries(s.items.filter(x=>!x.mature));
-    setFacets(m.facets);
-    track("app_open");
-   }catch(e){setError(sourceError(e));}
-   finally{setLoading(false);}
-  };
-  void load();
   return unsub;
  },[]);
+ useEffect(()=>{
+  let active=true;
+  setLoading(true);
+  const load=async()=>{
+   try{
+    // One failed provider category must not hide the other category.
+    const [moviesResult,seriesResult]=await Promise.allSettled([
+     catalogue({kind:"movie",page:1}),
+     catalogue({kind:"series",page:1})
+    ]);
+    if(!active)return;
+    if(moviesResult.status==="fulfilled"){
+     setMovies(moviesResult.value.items.filter(x=>!x.mature));
+     setFacets(moviesResult.value.facets);
+    }
+    if(seriesResult.status==="fulfilled")setSeries(seriesResult.value.items.filter(x=>!x.mature));
+    const unavailable=Number(moviesResult.status==="rejected")+Number(seriesResult.status==="rejected");
+    setError(unavailable===2
+     ?"The catalogue is unreachable on this network. Saved titles remain available."
+     :unavailable===1?"Some titles are temporarily unavailable. Retry to load them.":"");
+    if(!unavailable)track("app_open");
+   }finally{if(active)setLoading(false);}
+  };
+  void load();
+  return()=>{active=false;};
+ },[reloadKey]);
 
  const search=useCallback(async(p:number)=>{
   setSearchBusy(true);
@@ -158,7 +174,13 @@ function AppBody(){
      </Pressable>)}
    </ScrollView>
    {loading&&<ActivityIndicator color={C.magenta}/>}
-   {!!error&&<Text style={S.sub}>{error}</Text>}
+   {!!error&&<View style={S.reconnect}>
+    <Text style={S.sub}>{error}</Text>
+    <Pressable accessibilityRole="button" accessibilityLabel="Retry catalogue"
+      style={S.reconnectButton} onPress={()=>setReloadKey(value=>value+1)}>
+      <Text style={{color:"#041D25",fontWeight:"800"}}>↻ Retry catalogue</Text>
+    </Pressable>
+   </View>}
    {!!active&&<>
     <ScrollView horizontal pagingEnabled showsHorizontalScrollIndicator={false} onMomentumScrollEnd={ev=>setFeatured(Math.max(0,Math.round(ev.nativeEvent.contentOffset.x/(W-34))))}>
      {source.slice(0,8).map(i=><Pressable onPress={()=>void open(i)} key={i.id} style={[S.bigPoster,{width:W-34}]}>
@@ -227,13 +249,13 @@ function AppBody(){
      }catch{Alert.alert("Region unavailable","You can continue using PinFlix without location.");}
    }}/></View>
    <View style={{marginTop:20}}><Btn label="Clear watch history" fill={C.panel} onPress={()=>Alert.alert("Clear history?","Saved titles will remain.",[{text:"Cancel"},{text:"Clear",style:"destructive",onPress:()=>void clearHistory()}])}/></View>
-   <Text style={[S.credit,{marginTop:40}]}>{CREDIT} · PinFlix v2.0</Text>
+   <Text style={[S.credit,{marginTop:40}]}>{CREDIT} · PinFlix v2.0.9</Text>
   </ScrollView>}
   <View style={S.nav}>{(["Home","Discover","Saved","Profile"] as Tab[]).map((item,index)=><Pressable key={item} onPress={()=>setTab(item)} style={S.navItem}><Text style={{fontSize:22,color:item===tab?C.white:C.sub}}>{["⌂","◈","▢","♙"][index]}</Text><Text style={{fontSize:11,color:item===tab?C.white:C.sub}}>{item}</Text></Pressable>)}</View>
  </SafeAreaView>;
 }
 export default function App(){return <SafeAreaProvider><AppBody/></SafeAreaProvider>;}
-const S=StyleSheet.create({
+const S=StyleSheet.create({reconnect:{borderRadius:14,backgroundColor:"#14283B",padding:13,marginBottom:12,borderWidth:1,borderColor:"#27495B",gap:11},reconnectButton:{alignSelf:"flex-start",paddingHorizontal:16,paddingVertical:10,backgroundColor:C.magenta,borderRadius:10},
  searchShortcut:{flex:1,marginLeft:14,backgroundColor:"#25334A",borderRadius:12,paddingHorizontal:14,paddingVertical:13},
  headerTabActive:{color:C.white,fontSize:16,fontWeight:"900",borderBottomColor:C.magenta,borderBottomWidth:2},
  categoryTile:{height:66,minWidth:112,borderRadius:12,justifyContent:"center",paddingHorizontal:15,borderWidth:1,borderColor:"#39516A"},
