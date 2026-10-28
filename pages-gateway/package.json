@@ -1,0 +1,8 @@
+{
+  "name": "pinflix-pages-gateway",
+  "private": true,
+  "version": "0.1.0",
+  "scripts": {
+    "build": "node -e \"const f=require('fs');f.mkdirSync('dist',{recursive:true});f.copyFileSync('public/index.html','dist/index.html')\""
+  }
+}

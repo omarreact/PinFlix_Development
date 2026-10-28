@@ -1,0 +1,47 @@
+name: Diagnose PinFlix Cloudflare custom-domain gateway
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'pages-gateway/**'
+      - '.github/workflows/pinflix-cloudflare-gateway-smoke.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  smoke:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 8
+    steps:
+      - name: Check external DNS + HTTP/HTTPS across all gateway layers
+        shell: bash
+        run: |
+          set -uo pipefail
+          mkdir -p pinflix-gateway-diagnostics
+          echo '======== DNS / A / AAAA ========'
+          getent ahosts pinflix-apk.pincodeit.com | head -8 || true
+          for url in \
+            "https://pinflix-apk.pincodeit.com/__pinflix_health" \
+            "https://pinflix-apk.pincodeit.com/" \
+            "https://pinflix-apk.pincodeit.com/api/health" \
+            "https://pinflix-apk.pincodeit.com/api/catalogue?kind=movie&page=1" \
+            "https://pinflix-apk.pincodeit.com/movies/" \
+            "https://pinflix-apk-gateway.pages.dev/" \
+            "https://pinflix-nextjs-preview.farukkhanone.workers.dev/"; do
+            label=$(echo "$url" | sed -E 's#https?://##;s#[^[:alnum:]]+#-#g')
+            echo "======= REQUEST: $url ======="
+            http_code=$(curl --max-time 28 --connect-timeout 8 -L -sS \
+              -A 'Mozilla/5.0 (Android 15; Mobile) PinFlixGatewayDiagnostics/1.0' \
+              -D "pinflix-gateway-diagnostics/$label.headers" \
+              -o "pinflix-gateway-diagnostics/$label.body" \
+              -w '%{http_code}' "$url") || http_code="NETWORK_ERROR"
+            echo "HTTP status: $http_code"
+            cat "pinflix-gateway-diagnostics/$label.headers" | grep -iE '^HTTP/|^content-type:|^location:|^x-pinflix-edge:|^cf-ray:|^server:' | head -18 || true
+            head -c 450 "pinflix-gateway-diagnostics/$label.body"; echo
+          done
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: pinflix-gateway-connectivity-diagnostics
+          path: pinflix-gateway-diagnostics/
+          retention-days: 7
