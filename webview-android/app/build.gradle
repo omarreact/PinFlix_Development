@@ -1,13 +1,13 @@
 plugins { id 'com.android.application' }
-def trustedHosts = ['pin-flix.pincodeit.com','pinflix.pincodeit.com','pinflix.akogs-fashion.com']
-def requested = (project.findProperty('PINFLIX_WEB_URL') ?: 'https://pin-flix.pincodeit.com/').toString()
+def trustedHosts = ['pinflix-nextjs-test.farukkhanone.workers.dev']
+def requested = (project.findProperty('PINFLIX_WEB_URL') ?: 'https://pinflix-nextjs-test.farukkhanone.workers.dev/').toString()
 def url = new URI(requested)
 if (!(url.scheme in ['https','http']) || !(url.host in trustedHosts) ||
  url.rawUserInfo != null || url.rawQuery != null || url.rawFragment != null ||
  url.path != '/' || (url.port != -1 && url.port != 80 && url.port != 443)) {
  throw new GradleException('PINFLIX_WEB_URL must be the root of an approved PinFlix website')
 }
-if (url.scheme == 'http' && !(url.port in [-1,80])) throw new GradleException('HTTP must use port 80')
+if (url.scheme != 'https') throw new GradleException('Only HTTPS Cloudflare test host permitted')
 android {
  namespace 'com.pincodeit.pinflix.webview'
  compileSdk 35
