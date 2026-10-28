@@ -1,4 +1,5 @@
 import React,{useCallback,useEffect,useState} from "react";
+import {BackHandler} from "react-native";
 import {ActivityIndicator,Alert,Dimensions,FlatList,Image,ImageBackground,Platform,Pressable,ScrollView,StatusBar,StyleSheet,Switch,Text,TextInput,View} from "react-native";
 import type {ImageStyle,StyleProp} from "react-native";
 import {LinearGradient} from "expo-linear-gradient";
@@ -88,9 +89,23 @@ function AppBody(){
  };
  const play=(title:Title,season=1,episode=1)=>{setPlayer({title,season,episode});};
  const closeDetail=()=>{setSelected(null);setData(null);};
- const onNext=(season:number,episode:number)=>{if(player)setPlayer({...player,season,episode});};
+ const onNext=(season:number,episode:number)=>{setPlayer(current=>current?{...current,season,episode}:null);};
+ const exitPlayer=useCallback(()=>{setPlayer(null);},[]);
+ // The Android hardware Back key is in-app navigation, never an Activity exit
+ // when a title or an internal tab is open.
+ useEffect(()=>{
+  const sub=BackHandler.addEventListener("hardwareBackPress",()=>{
+   if(player)return true; // PlayerScreen owns back and orientation cleanup
+   if(selected){closeDetail();return true;}
+   if(intro){setIntro(false);return true;}
+   if(tab!=="Home"){setTab("Home");return true;}
+   return false;
+  });
+  return()=>sub.remove();
+ },[player,selected,intro,tab]);
 
- if(player)return <PlayerScreen key={player.title.id+":"+player.season+":"+player.episode} title={player.title} detail={data} season={player.season} episode={player.episode} onClose={()=>setPlayer(null)} onNext={onNext}/>;
+
+ if(player)return <PlayerScreen key={player.title.id+":"+player.season+":"+player.episode} title={player.title} detail={data} season={player.season} episode={player.episode} onClose={exitPlayer} onNext={onNext}/>;
 
  if(intro)return <View style={S.welcome}>
   <StatusBar hidden/>
@@ -120,18 +135,57 @@ function AppBody(){
  return <SafeAreaView style={S.root}>
   <StatusBar backgroundColor={C.bg} barStyle="light-content"/>
   {tab==="Home"&&<ScrollView contentContainerStyle={S.content} showsVerticalScrollIndicator={false}>
-   <View style={S.header}><View style={{flexDirection:"row",alignItems:"center",gap:9}}><Image source={require("./assets/icon.png")} style={{width:36,height:36,borderRadius:9}}/><Text style={S.logo}>Pin<Text style={{color:C.magenta}}>Flix</Text></Text></View><Text style={S.small}>● Live catalogue</Text></View>
-   <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{marginBottom:15}}>
-    {["Trending","New","Movies","Series"].map(x=><Text key={x} onPress={()=>{setKind(x==="Series"?"series":"movie");setFeatured(0);}} style={[S.headerTab,(kind==="series"?"Series":"Trending")===x&&{color:C.white,fontWeight:"800"}]}>{x}</Text>)}
+   <View style={S.header}>
+    <View style={{flexDirection:"row",alignItems:"center",gap:9}}>
+     <Image source={require("./assets/icon.png")} style={{width:32,height:32,borderRadius:8}}/>
+     <Text style={S.logo}>Pin<Text style={{color:C.magenta}}>Flix</Text></Text>
+    </View>
+    <Pressable style={S.searchShortcut} onPress={()=>{setKind("all");setTab("Discover");}}>
+     <Text style={{color:C.sub,fontSize:13}}>⌕  Search movies / series</Text>
+    </Pressable>
+   </View>
+   <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{gap:22,alignItems:"center",paddingBottom:12}}>
+    {(["Trending","TV/Series","Movies","New","Kids"] as const).map(x=>
+     <Pressable key={x} onPress={()=>{
+      if(x==="TV/Series"){setKind("series");setFeatured(0);return;}
+      if(x==="Movies"||x==="Trending"||x==="New"){setKind("movie");setFeatured(0);return;}
+      setKind("all");setFilter("Kids");setTab("Discover");
+     }}>
+      <Text style={[S.headerTab,((kind==="series"&&x==="TV/Series")||(kind!=="series"&&x==="Trending"))&&S.headerTabActive]}>{x}</Text>
+     </Pressable>)}
    </ScrollView>
-   {loading&&<ActivityIndicator color={C.purple}/>}
+   {loading&&<ActivityIndicator color={C.magenta}/>}
    {!!error&&<Text style={S.sub}>{error}</Text>}
-   {!!active&&<><ScrollView horizontal pagingEnabled showsHorizontalScrollIndicator={false} onMomentumScrollEnd={ev=>setFeatured(Math.round(ev.nativeEvent.contentOffset.x/(W-34)))}>{source.slice(0,8).map(i=><Pressable onPress={()=>void open(i)} key={i.id} style={[S.bigPoster,{width:W-34}]}><Artwork raw={i.poster} style={S.heroArt}/><LinearGradient colors={["transparent","#130A33"]} style={StyleSheet.absoluteFill}/><Text style={S.heroTitle} numberOfLines={2}>{i.title}</Text></Pressable>)}</ScrollView>
-    <Text style={S.featureYear}>{active.year||""}</Text><Text style={S.featureTitle}>{active.title}</Text><Text style={S.featureMeta}>{active.category||"Featured"}   ◇   {active.kind==="series"?"Series":"Movie"}</Text><Text style={S.dots}>●  ●  ●  ●  ●</Text>
+   {!!active&&<>
+    <ScrollView horizontal pagingEnabled showsHorizontalScrollIndicator={false} onMomentumScrollEnd={ev=>setFeatured(Math.max(0,Math.round(ev.nativeEvent.contentOffset.x/(W-34))))}>
+     {source.slice(0,8).map(i=><Pressable onPress={()=>void open(i)} key={i.id} style={[S.bigPoster,{width:W-34}]}>
+      <Artwork raw={i.backdrop||i.poster} style={S.heroArt}/>
+      <LinearGradient colors={["transparent","#070D17CC","#090D16"]} style={StyleSheet.absoluteFill}/>
+      <View style={S.heroBottom}>
+       <Text style={S.heroBadge}>FEATURED  ·  {i.year||"NEW"}</Text>
+       <Text style={S.heroTitle} numberOfLines={2}>{i.title}</Text>
+       <Text style={{color:"#DAE3E9",fontSize:12,marginBottom:10}}>{i.category||"Featured"}  ·  {i.kind==="series"?"TV Series":"Movie"}</Text>
+       <View style={{flexDirection:"row",gap:10}}>
+        <Pressable style={S.heroPlay} onPress={()=>void open(i)}><Text style={{color:"#031A22",fontWeight:"900"}}>▶  Watch Now</Text></Pressable>
+        <Pressable style={S.heroMore} onPress={()=>void toggleSaved(i)}><Text style={{color:C.white,fontWeight:"700"}}>{library.saved[i.id]?"✓ My List":"+ My List"}</Text></Pressable>
+       </View>
+      </View>
+     </Pressable>)}
+    </ScrollView>
+    <Text style={S.dots}>●  ●  ●  ●  ●</Text>
    </>}
-   <Label text="For You" action={()=>setTab("Discover")}/><Rail titles={movies.slice(0,18)} onSelect={x=>void open(x)}/>
-   <Label text="Fresh Episodes" action={()=>setTab("Discover")}/><Rail titles={series.slice(0,18)} onSelect={x=>void open(x)}/>
+   <Label text="Categories" action={()=>{setFilter("");setTab("Discover");}}/>
+   <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{gap:9}}>
+    {["All","Hollywood","Bangla","Hindi","Action","Anime"].map((cat,index)=>
+     <Pressable key={cat} style={[S.categoryTile,{backgroundColor:["#233653","#172F42","#29334B","#183D4A","#283140","#21384A"][index]}]} onPress={()=>{setFilter(cat==="All"?"":cat);setKind("all");setTab("Discover");}}>
+      <Text style={{fontWeight:"800",color:C.white,fontSize:13}}>{cat} ›</Text>
+     </Pressable>)}
+   </ScrollView>
+   <Label text="Top Picks" action={()=>setTab("Discover")}/><Rail titles={movies.slice(0,16)} onSelect={x=>void open(x)}/>
+   <Label text="Popular Series" action={()=>{setKind("series");setTab("Discover");}}/><Rail titles={series.slice(0,16)} onSelect={x=>void open(x)}/>
+   <Label text="New Movies" action={()=>{setKind("movie");setTab("Discover");}}/><Rail titles={movies.slice(4,22)} onSelect={x=>void open(x)}/>
    {Object.values(library.progress).some(v=>!v.completed)&&<><Label text="Continue Watching" action={()=>setTab("Saved")}/><Rail titles={Object.values(library.progress).filter(v=>!v.completed).sort((a,b)=>b.updatedAt-a.updatedAt).map(v=>v.title)} onSelect={x=>void open(x)}/></>}
+   <Text style={[S.credit,{marginTop:28}]}>{CREDIT}</Text>
   </ScrollView>}
   {tab==="Discover"&&<ScrollView contentContainerStyle={S.content} keyboardShouldPersistTaps="handled">
    <Text style={S.pageTitle}>Discover</Text><TextInput placeholder="Movies, shows, actors or keywords" placeholderTextColor={C.sub} value={query} onChangeText={setQuery} style={S.input}/>
@@ -176,4 +230,12 @@ function AppBody(){
  </SafeAreaView>;
 }
 export default function App(){return <SafeAreaProvider><AppBody/></SafeAreaProvider>;}
-const S=StyleSheet.create({root:{flex:1,backgroundColor:C.bg},content:{padding:17,paddingBottom:28},header:{flexDirection:"row",justifyContent:"space-between",alignItems:"center",marginBottom:12},logo:{fontSize:31,fontWeight:"900",color:C.white,letterSpacing:-1.5},small:{color:C.sub,fontSize:12},headerTab:{color:C.sub,marginRight:17,paddingVertical:8,fontSize:14},sectionRow:{flexDirection:"row",justifyContent:"space-between",alignItems:"center",marginTop:22,marginBottom:13},sectionTitle:{color:C.white,fontSize:18,fontWeight:"800"},posterTitle:{fontSize:12,color:C.white,marginTop:6,fontWeight:"700"},caption:{color:C.sub,fontSize:11,marginTop:4},bigPoster:{height:365,alignItems:"center",borderRadius:24,overflow:"hidden"},heroArt:{height:"100%",width:"100%",resizeMode:"contain",backgroundColor:C.panel},heroTitle:{position:"absolute",bottom:14,fontSize:23,color:C.white,fontWeight:"900",maxWidth:"85%",textAlign:"center"},featureYear:{color:C.sub,textAlign:"center",fontSize:12,marginTop:10},featureTitle:{fontWeight:"800",fontSize:21,color:C.white,textAlign:"center",marginTop:6},featureMeta:{color:C.sub,textAlign:"center",marginTop:8,fontSize:13},dots:{textAlign:"center",color:C.purple,marginTop:9},nav:{height:68,backgroundColor:"#2A1B40",flexDirection:"row",justifyContent:"space-around",alignItems:"center",borderTopColor:C.line,borderTopWidth:1},navItem:{alignItems:"center",justifyContent:"center",gap:3,flex:1},button:{paddingHorizontal:20,paddingVertical:12,borderRadius:22,alignItems:"center",justifyContent:"center"},buttonText:{color:C.white,fontWeight:"800",fontSize:14},pageTitle:{fontSize:27,color:C.white,fontWeight:"900",marginBottom:12},input:{borderRadius:15,padding:14,fontSize:14,color:C.white,backgroundColor:C.panel,marginTop:6,marginBottom:12},pills:{flexDirection:"row",flexWrap:"wrap",gap:8,alignItems:"center"},pill:{color:C.sub,paddingVertical:9,paddingHorizontal:13,backgroundColor:C.panel,borderRadius:20,fontSize:12,overflow:"hidden"},grid:{flexDirection:"row",flexWrap:"wrap",gap:8},filterBox:{padding:12,borderRadius:15,backgroundColor:C.surface,marginTop:12,gap:12},detailTop:{position:"absolute",top:20,left:15,right:15,flexDirection:"row",justifyContent:"space-between"},detailsHero:{height:340,backgroundColor:C.panel},playFloating:{position:"absolute",bottom:40,alignSelf:"center"},detailTitle:{fontSize:24,fontWeight:"800",color:C.white,marginTop:8,marginBottom:11},actor:{width:78,marginRight:14,alignItems:"center"},avatar:{width:69,height:77,borderRadius:12,backgroundColor:C.purple,justifyContent:"center",alignItems:"center"},avatarLetter:{fontSize:25,color:C.white},actorName:{fontSize:11,color:C.sub,marginTop:6,textAlign:"center"},description:{fontSize:14,color:C.sub,lineHeight:23},filterChip:{color:C.white,padding:13,backgroundColor:C.panel,marginVertical:4},episode:{padding:14,flexDirection:"row",justifyContent:"space-between",alignItems:"center",backgroundColor:C.panel,borderRadius:12,marginBottom:8},episodeTitle:{fontSize:13,color:C.white,fontWeight:"600",maxWidth:"75%"},sub:{color:C.sub,fontSize:13,lineHeight:20,marginTop:6},setting:{flexDirection:"row",justifyContent:"space-between",alignItems:"center",paddingVertical:12,borderBottomWidth:1,borderBottomColor:C.line},credit:{color:C.sub,fontSize:12,letterSpacing:1.4,textAlign:"center"},welcome:{flex:1,backgroundColor:C.bg},collage:{flexDirection:"row",flexWrap:"wrap",justifyContent:"center",marginTop:-20},collageImage:{width:W/3,height:205,margin:2,borderRadius:13,backgroundColor:C.panel},welcomeBottom:{position:"absolute",bottom:36,left:20,right:20,gap:14},welcomeTitle:{fontSize:28,color:C.white,textAlign:"center",fontWeight:"900"},welcomeText:{fontSize:13,color:C.sub,textAlign:"center"}});
+const S=StyleSheet.create({
+ searchShortcut:{flex:1,marginLeft:14,backgroundColor:"#25334A",borderRadius:12,paddingHorizontal:14,paddingVertical:13},
+ headerTabActive:{color:C.white,fontSize:16,fontWeight:"900",borderBottomColor:C.magenta,borderBottomWidth:2},
+ categoryTile:{height:66,minWidth:112,borderRadius:12,justifyContent:"center",paddingHorizontal:15,borderWidth:1,borderColor:"#39516A"},
+ heroBottom:{position:"absolute",bottom:20,left:18,right:18,alignItems:"flex-start"},
+ heroBadge:{color:C.magenta,fontWeight:"800",fontSize:11,letterSpacing:1.1,marginBottom:8},
+ heroPlay:{backgroundColor:C.magenta,borderRadius:20,paddingHorizontal:20,paddingVertical:11},
+ heroMore:{backgroundColor:"#FFFFFF22",borderRadius:20,paddingHorizontal:20,paddingVertical:11},
+ root:{flex:1,backgroundColor:C.bg},content:{padding:17,paddingBottom:28},header:{flexDirection:"row",justifyContent:"space-between",alignItems:"center",marginBottom:12},logo:{fontSize:31,fontWeight:"900",color:C.white,letterSpacing:-1.5},small:{color:C.sub,fontSize:12},headerTab:{color:C.sub,fontSize:14},sectionRow:{flexDirection:"row",justifyContent:"space-between",alignItems:"center",marginTop:22,marginBottom:13},sectionTitle:{color:C.white,fontSize:18,fontWeight:"800"},posterTitle:{fontSize:12,color:C.white,marginTop:6,fontWeight:"700"},caption:{color:C.sub,fontSize:11,marginTop:4},bigPoster:{height:392,alignItems:"center",borderRadius:24,overflow:"hidden"},heroArt:{height:"100%",width:"100%",resizeMode:"cover",backgroundColor:C.panel},heroTitle:{position:"absolute",bottom:14,fontSize:23,color:C.white,fontWeight:"900",maxWidth:"85%",textAlign:"center"},featureYear:{color:C.sub,textAlign:"center",fontSize:12,marginTop:10},featureTitle:{fontWeight:"800",fontSize:21,color:C.white,textAlign:"center",marginTop:6},featureMeta:{color:C.sub,textAlign:"center",marginTop:8,fontSize:13},dots:{textAlign:"center",color:C.purple,marginTop:9},nav:{height:68,backgroundColor:"#101B2A",flexDirection:"row",justifyContent:"space-around",alignItems:"center",borderTopColor:C.line,borderTopWidth:1},navItem:{alignItems:"center",justifyContent:"center",gap:3,flex:1},button:{paddingHorizontal:20,paddingVertical:12,borderRadius:22,alignItems:"center",justifyContent:"center"},buttonText:{color:C.white,fontWeight:"800",fontSize:14},pageTitle:{fontSize:27,color:C.white,fontWeight:"900",marginBottom:12},input:{borderRadius:15,padding:14,fontSize:14,color:C.white,backgroundColor:C.panel,marginTop:6,marginBottom:12},pills:{flexDirection:"row",flexWrap:"wrap",gap:8,alignItems:"center"},pill:{color:C.sub,paddingVertical:9,paddingHorizontal:13,backgroundColor:C.panel,borderRadius:20,fontSize:12,overflow:"hidden"},grid:{flexDirection:"row",flexWrap:"wrap",gap:8},filterBox:{padding:12,borderRadius:15,backgroundColor:C.surface,marginTop:12,gap:12},detailTop:{position:"absolute",top:20,left:15,right:15,flexDirection:"row",justifyContent:"space-between"},detailsHero:{height:340,backgroundColor:C.panel},playFloating:{position:"absolute",bottom:40,alignSelf:"center"},detailTitle:{fontSize:24,fontWeight:"800",color:C.white,marginTop:8,marginBottom:11},actor:{width:78,marginRight:14,alignItems:"center"},avatar:{width:69,height:77,borderRadius:12,backgroundColor:C.purple,justifyContent:"center",alignItems:"center"},avatarLetter:{fontSize:25,color:C.white},actorName:{fontSize:11,color:C.sub,marginTop:6,textAlign:"center"},description:{fontSize:14,color:C.sub,lineHeight:23},filterChip:{color:C.white,padding:13,backgroundColor:C.panel,marginVertical:4},episode:{padding:14,flexDirection:"row",justifyContent:"space-between",alignItems:"center",backgroundColor:C.panel,borderRadius:12,marginBottom:8},episodeTitle:{fontSize:13,color:C.white,fontWeight:"600",maxWidth:"75%"},sub:{color:C.sub,fontSize:13,lineHeight:20,marginTop:6},setting:{flexDirection:"row",justifyContent:"space-between",alignItems:"center",paddingVertical:12,borderBottomWidth:1,borderBottomColor:C.line},credit:{color:C.sub,fontSize:12,letterSpacing:1.4,textAlign:"center"},welcome:{flex:1,backgroundColor:C.bg},collage:{flexDirection:"row",flexWrap:"wrap",justifyContent:"center",marginTop:-20},collageImage:{width:W/3,height:205,margin:2,borderRadius:13,backgroundColor:C.panel},welcomeBottom:{position:"absolute",bottom:36,left:20,right:20,gap:14},welcomeTitle:{fontSize:28,color:C.white,textAlign:"center",fontWeight:"900"},welcomeText:{fontSize:13,color:C.sub,textAlign:"center"}});
