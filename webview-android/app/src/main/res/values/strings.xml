@@ -1,0 +1,5 @@
+<resources>
+ <string name="app_name">PinFlix Web</string>
+ <string name="retry">Retry</string>
+ <string name="offline_message">PinFlix cannot connect right now. Check your connection and retry.</string>
+</resources>

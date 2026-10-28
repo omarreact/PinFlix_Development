@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<network-security-config>
+ <base-config cleartextTrafficPermitted="false"/>
+ <domain-config cleartextTrafficPermitted="true">
+  <domain includeSubdomains="false">cineplexbd.net</domain>
+  <domain includeSubdomains="false">vod.cineplexbd.net</domain>
+  <domain includeSubdomains="false">cds3.cineplexbd.net</domain>
+  <domain includeSubdomains="false">103.136.200.124</domain>
+ </domain-config>
+</network-security-config>

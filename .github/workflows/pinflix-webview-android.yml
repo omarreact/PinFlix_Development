@@ -1,0 +1,94 @@
+name: Build PinFlix Next.js WebView APK
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'webview-android/**'
+      - '.github/workflows/pinflix-webview-android.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: pinflix-webview-android
+  cancel-in-progress: true
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.12.1'
+      - name: Install Android SDK 35
+        run: |
+          SDKMANAGER=$(find "${ANDROID_HOME}/cmdline-tools" -type f -name sdkmanager | sort -V | tail -1)
+          test -n "$SDKMANAGER"
+          "$SDKMANAGER" --install 'platforms;android-35' 'build-tools;35.0.0'
+      - name: Check wrapper security and navigation
+        working-directory: webview-android
+        run: python3 scripts/check_wrapper.py
+      - name: Build debug-signed WebView APK
+        working-directory: webview-android
+        run: gradle --no-daemon :app:assembleDebug --stacktrace
+      - name: Verify package and signature
+        run: |
+          APK=webview-android/app/build/outputs/apk/debug/app-debug.apk
+          test -s "$APK"
+          "${ANDROID_HOME}/build-tools/35.0.0/apksigner" verify --verbose "$APK"
+          "${ANDROID_HOME}/build-tools/35.0.0/aapt" dump badging "$APK" | head -10
+          sha256sum "$APK" | tee webview-android/apk-sha256.txt
+      - name: Publish WebView APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: PinFlix-NextJS-WebView-Android-Preview
+          path: |
+            webview-android/app/build/outputs/apk/debug/app-debug.apk
+            webview-android/apk-sha256.txt
+          retention-days: 21
+          if-no-files-found: error
+
+  android-device-smoke:
+    needs: build
+    runs-on: ubuntu-24.04
+    timeout-minutes: 28
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: PinFlix-NextJS-WebView-Android-Preview
+          path: webview-apk
+      - name: Enable hardware acceleration
+        run: sudo chmod 666 /dev/kvm
+      - name: Cold launch and Android Back smoke
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 35
+          target: google_apis
+          arch: x86_64
+          emulator-boot-timeout: 600
+          script: |
+            mkdir -p webview-device-evidence
+            adb install -r webview-apk/app/build/outputs/apk/debug/app-debug.apk
+            adb logcat -c
+            adb shell am start -W -n com.pincodeit.pinflix.webview/.MainActivity
+            sleep 28
+            adb shell pidof com.pincodeit.pinflix.webview
+            adb exec-out screencap -p > webview-device-evidence/screen.png
+            adb logcat -d -b crash > webview-device-evidence/android-crash.txt
+            ! grep -q 'com.pincodeit.pinflix.webview' webview-device-evidence/android-crash.txt
+            adb shell input keyevent KEYCODE_BACK
+            sleep 3
+            adb shell pidof com.pincodeit.pinflix.webview
+            adb exec-out screencap -p > webview-device-evidence/back.png
+      - name: Publish Android screen and crash evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: PinFlix-WebView-v1.4-Device-Smoke
+          path: webview-device-evidence/
+          retention-days: 14
