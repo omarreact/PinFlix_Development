@@ -1,48 +1,19 @@
-# PinFlix Next.js Android WebView (one UI)
+# PinFlix Next.js Android WebView — Cloudflare-only test edition
 
-This is a **separate installable Android package** (`com.pincodeit.pinflix.webview`) that opens the responsive PinFlix Next.js website without maintaining separate React Native screens.
+This Android APK is built by **GitHub Actions**, renders the same PinFlix responsive Next.js UI hosted on **Cloudflare Workers** and must make **no Vercel requests**.
 
-## Which website does it use?
+**Test URL:** https://pinflix-nextjs-test.farukkhanone.workers.dev/
 
-Development APK: `https://pin-flix.pincodeit.com/` (the CineplexBD-focused PinFlix_Development Next.js project).
+The Cloudflare Worker is independently connected to the same `omarreact/PinFlix_Development` repository, tracking the development branch. The Vercel-hosted website remains independent; no production changes have been made. The Cloudflare test Worker may initially show an environment readiness page until the full vinext build succeeds.
 
-Production: once the new website and playback have passed acceptance and `pinflix.pincodeit.com` has been switched to the approved site, rebuild using:
-```sh
-gradle --no-daemon :app:assembleDebug -PPINFLIX_WEB_URL=https://pinflix.pincodeit.com/
-```
+The APK only permits this exact Cloudflare Worker hostname as an internal web origin. HTTP cleartext is restricted to the existing approved CineplexBD media servers; SSL/TLS errors are never bypassed.
 
-An HTTP-hosted version can be used by building with an approved site URL such as `http://pinflix.akogs-fashion.com/`, **but only after confirming the full site actually runs there**. Vercel will automatically redirect HTTP requests to HTTPS: the APK cannot override Vercel's hosting policy. No unknown domain is permitted as a shell origin.
+**Security/functional limitations:** Next.js server routes run on Cloudflare (the WebView does not bundle the Next.js server). CineplexBD-only catalogue and playback remain on the server-side provider. HTML5 MP4/HLS media and HTTP mixed-content can still fail because of upstream reachability, WebView/CSP restrictions, or source behavior. Test these features before release.
 
-## Playback
+## Build via GitHub Actions
 
-The WebView allows approved CineplexBD HTTP video/image subresources from an HTTPS page. Android's network policy globally rejects HTTP except explicit original media hosts and trusted app hosts. The WebView blocks unapproved HTTP subrequests and never ignores SSL certificate errors. Browser playback is still subject to Next.js server-side media resolution, CSP, upstream availability and WebView codecs; HTTP access alone is not a cure for non-working media.
+The workflow `.github/workflows/pinflix-webview-android.yml` builds a debug-signed test APK, checks the signature, and uploads `PinFlix-NextJS-WebView-Android-Preview`. A production APK needs a persistent release signing key.
 
-**This WebView APK can rely on Vercel because it displays the Next.js website.** The existing direct-Java Android APK is the separate choice if you require **zero Vercel dependence anywhere**.
+## Test
 
-## User experience
-
-- One shared responsive Next.js interface for website and Android.
-- Hardware Back exits fullscreen, navigates back in web history, and only closes after explicit confirmation.
-- HTML5 video fullscreen rotates to landscape, restores previous orientation on return.
-- First-party cookies and local website storage; no separate React Native session.
-- Error/retry view for unreachable site.
-- Supports approved HTTP and HTTPS resources without accepting arbitrary HTTP traffic.
-- Can be installed alongside the native APK under a separate package ID.
-
-## Build
-
-JDK 17, Android SDK 35, Android Gradle Plugin 8.9.2, Gradle 8.12.1.
-
-```sh
-cd webview-android
-python3 scripts/check_wrapper.py
-gradle --no-daemon :app:assembleDebug
-```
-
-The debug-signed test APK is `app/build/outputs/apk/debug/app-debug.apk`. GitHub Actions publishes an artifact when the pull request is opened.
-
-## Manual acceptance before releasing
-
-Test the APK with Wi-Fi and mobile data: home screen, catalogue, search, movie and TV details, a playable MP4 movie, an HLS episode, seek controls, fullscreen/Back without app termination, provider-domain restrictions, and network error recovery. The site must remain accessible; this is not an offline website build.
-
-Only then rebuild pointing at the final production domain. Do not publish the new site or overwrite `pinflix.pincodeit.com` without approval.
+Install alongside the native APK (different package ID). Open home, search, movie, episode details; verify full-screen/Back, HTTP media fetches and app not closing unexpectedly. Confirm device network logs contain no requests to `*.vercel.app` or `pin-flix.pincodeit.com`; if a site API references Vercel, remove it from the Cloudflare deployment before publication.
