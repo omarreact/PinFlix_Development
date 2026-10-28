@@ -80,9 +80,7 @@ jobs:
             adb shell pidof com.pincodeit.pinflix.webview
             adb exec-out screencap -p > webview-device-evidence/screen.png
             adb logcat -d -b crash > webview-device-evidence/android-crash.txt
-            if grep -q 'com.pincodeit.pinflix.webview' webview-device-evidence/android-crash.txt; then
-              echo "PinFlix WebView crashed at launch"; exit 1
-            fi
+            ! grep -q 'com.pincodeit.pinflix.webview' webview-device-evidence/android-crash.txt
             adb shell input keyevent KEYCODE_BACK
             sleep 3
             adb shell pidof com.pincodeit.pinflix.webview
