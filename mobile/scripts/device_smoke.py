@@ -84,7 +84,7 @@ def assert_format(kind, required):
 
 def watch(kind):
     if kind == "series":
-        tap_text("Series")
+        tap_text("TV/Series")
         time.sleep(2)
     size = adb("shell", "wm", "size")
     width, height = map(int, re.search(r"(\d+)x(\d+)", size).groups())
@@ -119,14 +119,14 @@ def main():
             tap_text("Get Started", 18)
         except RuntimeError:
             pass  # Intro was already dismissed by persisted state.
-        wait_text("For You", 65)
+        wait_text("Top Picks", 65)
         deadline = time.monotonic() + 65
         while True:
             labels = [label for label, _ in visible() if label]
-            if any("◇" in label and "Movie" in label for label in labels):
+            if any("Watch Now" in label for label in labels):
                 break
             if time.monotonic() >= deadline:
-                raise RuntimeError(f"Catalogue rendered no movie cards; visible text: {labels[:25]}")
+                raise RuntimeError(f"Provider/network blocked movie catalogue or cards are absent; visible text: {labels[:25]}")
             time.sleep(2)
         REPORT.append("Native bridge loaded catalogue into the release app")
         snapshot("catalogue")
@@ -147,7 +147,7 @@ def main():
         REPORT.append("Movie resume restored the saved playback position")
         adb("shell", "input", "keyevent", "4")
         tap_text("‹ Back") if any("‹ Back" in t for t, _ in visible()) else tap_text("‹")
-        wait_text("For You")
+        wait_text("Top Picks")
         watch("series")
         assert_format("series", "HLS")
         tap_text("CC")
