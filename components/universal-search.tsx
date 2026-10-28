@@ -262,7 +262,7 @@ export function UniversalSearch({
         <header className="unv-topbar">
           <button className="unv-hamburger" aria-label="Open navigation"
             onClick={() => setSidebarOpen(true)}><Menu size={21} /></button>
-          <span className="unv-page-name"><Clapperboard size={17} /> PinFlix universal search</span>
+          <span className="unv-page-name"><Clapperboard size={17} /> Browse PinFlix</span>
           <div className="unv-top-actions">
             <button onClick={() => searchInput.current?.focus()} aria-label="Jump to search">
               <Search size={17} /> <span>Search</span>
@@ -273,35 +273,79 @@ export function UniversalSearch({
         </header>
 
         <div className="unv-content">
-          <section className="unv-hero" aria-labelledby="unv-hero-title">
-            <div className="unv-hero-halo" aria-hidden="true" />
+          <section className="unv-hero mb-cinema-hero" aria-labelledby="unv-hero-title">
+            {filtered[0]?.poster && <div className="mb-hero-poster" aria-hidden="true">
+              <Artwork src={filtered[0].backdrop || filtered[0].poster} alt="" />
+            </div>}
             <div className="unv-hero-inner">
-              <span className="unv-eyebrow"><Sparkles size={15} /> {isStale ? "SAVED CINEPLEXBD CATALOG" : "EXPLORE CINEPLEXBD"}</span>
-              <h1 id="unv-hero-title">One search.<br /><em>A world to watch.</em></h1>
-              <p>Discover movies, TV series, anime, documentaries and wrestling from the PinFlix catalog.</p>
-              <form className="unv-hero-search" role="search" onSubmit={(e) => { e.preventDefault(); setRevision((r) => r + 1); }}>
-                <Search size={21} aria-hidden="true" />
+              <span className="unv-eyebrow"><Sparkles size={15}/> FEATURED ON PINFLIX</span>
+              <h1 id="unv-hero-title">{filtered[0]?.title || <>One search.<br/><em>A world to watch.</em></>}</h1>
+              <p>{filtered[0]
+                ? [filtered[0].year,filtered[0].category,filtered[0].kind === "series" ? "TV Series" : "Movie"].filter(Boolean).join(" · ")
+                : "Discover movies, TV series, anime and more with PinFlix."}</p>
+              {filtered[0] && <div className="mb-featured-actions">
+                <Link href={titleHref(filtered[0]) + "?resume=1"} className="mb-featured-watch">
+                  <Play size={17} fill="currentColor" /> Watch now
+                </Link>
+                <button type="button" className="mb-featured-more"
+                  onClick={() => {setSelected(filtered[0]);setSelectedDetail(null);setSelectedSeason(1);}}>
+                  Details <ArrowRight size={16}/>
+                </button>
+              </div>}
+              <form className="unv-hero-search" role="search" onSubmit={(e) => {e.preventDefault();setRevision((r)=>r+1);}}>
+                <Search size={20} aria-hidden="true"/>
                 <input ref={searchInput} type="search" aria-label="Search the catalog"
                   value={filters.q} maxLength={120}
-                  placeholder="Search movies, series, anime, anything..."
-                  onChange={(e) => setFilter("q", e.target.value)} />
+                  placeholder="Search movies / TV series"
+                  onChange={(e) => setFilter("q",e.target.value)}/>
                 {filters.q && <button type="button" aria-label="Clear search"
-                  className="unv-search-clear" onClick={() => setFilter("q", "")}><X size={17} /></button>}
-                <button className="unv-search-submit" type="submit"><Search size={17} /><span>Search</span></button>
-                <button className="unv-search-advanced" type="button"
-                  aria-label="Advanced search" aria-expanded={filtersOpen}
-                  onClick={() => setFiltersOpen((v) => !v)}><SlidersHorizontal size={19} /></button>
+                  className="unv-search-clear" onClick={() => setFilter("q","")}><X size={17}/></button>}
+                <button className="unv-search-submit" type="submit"><Search size={18}/><span>Search</span></button>
+                <button className="unv-search-advanced" type="button" aria-label="Advanced search"
+                  aria-expanded={filtersOpen} onClick={() => setFiltersOpen((v)=>!v)}><SlidersHorizontal size={19}/></button>
               </form>
-              <div className="unv-quick-chips">
-                <span>TRENDING CATEGORIES</span>
-                {["Bangla Dubbed", "Hindi Dubbed", "Anime", "4K Movies"].map((name) =>
-                  <button key={name} onClick={() => quickCategory(name)}>{name}<ArrowRight size={12} /></button>)}
-              </div>
-            </div>
-            <div className="unv-hero-decoration" aria-hidden="true">
-              <span className="unv-decor-ring" /><Clapperboard size={102} strokeWidth={0.7} />
             </div>
           </section>
+
+          <div className="mb-browse-tabs" role="group" aria-label="Quick content navigation">
+            {([["","Trending"],["series","TV/Series"],["movie","Movies"]] as const).map(([value,label])=>
+              <button key={label} className={kind===value?"is-active":""} onClick={()=>pickKind(value)}>{label}</button>)}
+            <button onClick={()=>{setPreset("animation");setKind("");}}>Anime</button>
+            <Link href="/my-list/">My List <Bookmark size={14}/></Link>
+          </div>
+
+          <section className="mb-category-section" aria-label="Browse categories">
+            <div className="mb-section-title"><h2>Categories</h2><span>Explore by genre</span></div>
+            <div className="mb-category-row">
+              {[...new Map(data.categories.filter(c=>!c.mature).map(c=>[c.name.toLowerCase(),c])).values()].slice(0,9)
+                .map((c,index)=><button key={c.kind+c.name}
+                  className={"mb-category-tile mb-category-"+index%5}
+                  onClick={()=>pickCategory(c.name,c.kind)}>
+                  <span>{c.name}</span><ArrowRight size={17}/>
+                </button>)}
+            </div>
+          </section>
+
+          {(["movie","series"] as const).map((type)=>
+            <section key={type} className="mb-poster-section"
+              aria-label={type==="movie"?"Popular movies":"Popular series"}>
+              <div className="mb-section-title">
+                <h2>{type==="movie"?"Popular Movies":"Popular Series"}</h2>
+                <button onClick={()=>pickKind(type)}>More <ArrowRight size={15}/></button>
+              </div>
+              <div className="mb-movie-row">
+                {data.items.filter(item=>item.kind===type).slice(0,15).map(item=>
+                  <button type="button" className="mb-movie-card" key={item.id}
+                    onClick={()=>{setSelected(item);setSelectedDetail(null);setSelectedSeason(1);}}>
+                    <div className="mb-movie-cover">
+                      <Artwork src={item.poster} alt={item.title}/>
+                      {item.rating&&<span className="mb-movie-rating">★ {item.rating}</span>}
+                    </div>
+                    <strong>{item.title}</strong>
+                    <span>{item.year||"Title"} · {item.kind==="movie"?"Movie":"Series"}</span>
+                  </button>)}
+              </div>
+            </section>)}
 
           {filtersOpen && (
             <div className="unv-advanced" aria-label="Advanced search filters">
@@ -466,7 +510,7 @@ export function UniversalSearch({
             <div className="unv-dialog-hero">
               <div className="unv-dialog-cover"><Artwork src={currentlySelected?.poster || null} alt={currentlySelected?.title || ""} /></div>
               <div className="unv-dialog-intro">
-                <span className="unv-eyebrow">{selected.kind === "series" ? "TV SERIES" : "MOVIE"} · CINEPLEXBD</span>
+                <span className="unv-eyebrow">{selected.kind === "series" ? "TV SERIES" : "MOVIE"} · PINFLIX</span>
                 <h2 id="unv-dialog-title">{currentlySelected?.title}</h2>
                 <div className="unv-dialog-meta">
                   <span>{currentlySelected?.year || "Year unknown"}</span>
