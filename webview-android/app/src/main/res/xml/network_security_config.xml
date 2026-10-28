@@ -6,8 +6,5 @@
   <domain includeSubdomains="false">vod.cineplexbd.net</domain>
   <domain includeSubdomains="false">cds3.cineplexbd.net</domain>
   <domain includeSubdomains="false">103.136.200.124</domain>
-  <domain includeSubdomains="false">pin-flix.pincodeit.com</domain>
-  <domain includeSubdomains="false">pinflix.pincodeit.com</domain>
-  <domain includeSubdomains="false">pinflix.akogs-fashion.com</domain>
  </domain-config>
 </network-security-config>
