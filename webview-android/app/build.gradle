@@ -1,6 +1,6 @@
 plugins { id 'com.android.application' }
-def trustedHosts = ['pinflix-nextjs-test.farukkhanone.workers.dev']
-def requested = (project.findProperty('PINFLIX_WEB_URL') ?: 'https://pinflix-nextjs-test.farukkhanone.workers.dev/').toString()
+def trustedHosts = ['pinflix-nextjs-preview.farukkhanone.workers.dev']
+def requested = (project.findProperty('PINFLIX_WEB_URL') ?: 'https://pinflix-nextjs-preview.farukkhanone.workers.dev/').toString()
 def url = new URI(requested)
 if (!(url.scheme in ['https','http']) || !(url.host in trustedHosts) ||
  url.rawUserInfo != null || url.rawQuery != null || url.rawFragment != null ||
