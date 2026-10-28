@@ -40,8 +40,8 @@ test("universal-search layout renders the source UI discovery controls", () => {
     initialKind: ""
   }));
   for (const required of [
-    "One search.", "A world to watch.", "Search the catalog",
-    "Explore the catalog", "All titles", "Movies", "TV Series",
+    "FEATURED ON PINFLIX", "Search the catalog", "Watch now", "Details",
+    "Explore the catalog", "All titles", "Movies", "TV Series", "Categories", "Popular Movies", "Popular Series", "Trending",
     "Anime &amp; Animation", "Wrestling", "Sort titles",
     "Grid view", "Title list view", "Source connection status",
     "Reference Movie", "Reference TV Series",
