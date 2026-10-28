@@ -1,6 +1,6 @@
 plugins { id 'com.android.application' }
-def trustedHosts = ['pinflix-nextjs-preview.farukkhanone.workers.dev']
-def requested = (project.findProperty('PINFLIX_WEB_URL') ?: 'https://pinflix-nextjs-preview.farukkhanone.workers.dev/').toString()
+def trustedHosts = ['pinflix-apk.pincodeit.com']
+def requested = (project.findProperty('PINFLIX_WEB_URL') ?: 'https://pinflix-apk.pincodeit.com/').toString()
 def url = new URI(requested)
 if (!(url.scheme in ['https','http']) || !(url.host in trustedHosts) ||
  url.rawUserInfo != null || url.rawQuery != null || url.rawFragment != null ||
@@ -15,8 +15,8 @@ android {
   applicationId 'com.pincodeit.pinflix.webview'
   minSdk 24
   targetSdk 35
-  versionCode 1
-  versionName '1.0.0-webview'
+  versionCode 2
+  versionName '1.3.0-webview'
   buildConfigField 'String','PINFLIX_WEB_URL','"' + requested + '"'
  }
  buildTypes {
