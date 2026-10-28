@@ -25,6 +25,7 @@ import android.webkit.WebView;
 import android.webkit.WebViewClient;
 import android.widget.Button;
 import android.widget.FrameLayout;
+import android.widget.ProgressBar;
 import android.widget.LinearLayout;
 import android.widget.TextView;
 import java.io.ByteArrayInputStream;
@@ -37,6 +38,7 @@ public final class MainActivity extends Activity {
     private WebView browser;
     private FrameLayout frame;
     private LinearLayout errorView;
+    private ProgressBar loadingBar;
     private View fullScreenView;
     private WebChromeClient.CustomViewCallback fullScreenCallback;
     private int priorOrientation;
@@ -92,6 +94,11 @@ public final class MainActivity extends Activity {
         // The interception and network XML below restrict cleartext hosts.
         settings.setMixedContentMode(WebSettings.MIXED_CONTENT_ALWAYS_ALLOW);
         settings.setCacheMode(WebSettings.LOAD_DEFAULT);
+        // Reset stale pre-fix placeholder HTML once after upgrading to 1.4.
+        if(getSharedPreferences("pinflix_webview",MODE_PRIVATE).getInt("cache_schema",0)<14) {
+            browser.clearCache(true);
+            getSharedPreferences("pinflix_webview",MODE_PRIVATE).edit().putInt("cache_schema",14).apply();
+        }
         CookieManager.getInstance().setAcceptCookie(true);
         CookieManager.getInstance().setAcceptThirdPartyCookies(browser,false);
         WebView.setWebContentsDebuggingEnabled(BuildConfig.DEBUG);
@@ -120,6 +127,7 @@ public final class MainActivity extends Activity {
 
             @Override public void onPageStarted(WebView view, String url, Bitmap favicon) {
                 mainFrameFailed=false;
+                if(loadingBar!=null){loadingBar.setVisibility(View.VISIBLE);loadingBar.setProgress(8);}
                 showError(false);
             }
             @Override public void onReceivedError(WebView view, WebResourceRequest request, WebResourceError error) {
@@ -131,6 +139,7 @@ public final class MainActivity extends Activity {
                 }
             }
             @Override public void onPageFinished(WebView view, String url) {
+                if(loadingBar!=null)loadingBar.setVisibility(View.GONE);
                 if(!mainFrameFailed) showError(false);
             }
             @Override public void onReceivedSslError(WebView view, SslErrorHandler handler, SslError error) {
@@ -139,12 +148,16 @@ public final class MainActivity extends Activity {
         });
 
         browser.setWebChromeClient(new WebChromeClient() {
+            @Override public void onProgressChanged(WebView view,int progress) {
+                if(loadingBar!=null){loadingBar.setProgress(progress);loadingBar.setVisibility(progress>=100?View.GONE:View.VISIBLE);}
+            }
             @Override public void onShowCustomView(View view, CustomViewCallback callback) {
                 if(fullScreenView!=null) {callback.onCustomViewHidden();return;}
                 priorOrientation=getRequestedOrientation();
                 fullScreenView=view;
                 fullScreenCallback=callback;
                 browser.setVisibility(View.GONE);
+                if(loadingBar!=null)loadingBar.setVisibility(View.GONE);
                 frame.addView(view,new FrameLayout.LayoutParams(
                     ViewGroup.LayoutParams.MATCH_PARENT,ViewGroup.LayoutParams.MATCH_PARENT));
                 getWindow().setFlags(WindowManager.LayoutParams.FLAG_FULLSCREEN,
@@ -161,6 +174,12 @@ public final class MainActivity extends Activity {
 
         frame.addView(browser,new FrameLayout.LayoutParams(
             ViewGroup.LayoutParams.MATCH_PARENT,ViewGroup.LayoutParams.MATCH_PARENT));
+        loadingBar=new ProgressBar(this,null,android.R.attr.progressBarStyleHorizontal);
+        loadingBar.setIndeterminate(false);
+        loadingBar.setMax(100);
+        FrameLayout.LayoutParams progressParams=new FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT,
+            (int)(3*getResources().getDisplayMetrics().density),Gravity.TOP);
+        frame.addView(loadingBar,progressParams);
 
         errorView=new LinearLayout(this);
         errorView.setOrientation(LinearLayout.VERTICAL);
@@ -192,6 +211,7 @@ public final class MainActivity extends Activity {
 
     private void showError(boolean visible) {
         if(errorView!=null)errorView.setVisibility(visible?View.VISIBLE:View.GONE);
+        if(visible && loadingBar!=null)loadingBar.setVisibility(View.GONE);
     }
 
     private void leaveFullscreen() {
