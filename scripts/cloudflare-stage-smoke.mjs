@@ -26,6 +26,27 @@ for (const { path, kind } of checks) {
     failures++;
   }
 }
+
+try {
+  const response = await fetch(new URL("/api/catalogue?sort=recent", origin), { redirect: "manual", signal: AbortSignal.timeout(20000) });
+  const body = response.status === 200 ? await response.json() : null;
+  const pass = response.status === 200 && body !== null && typeof body === "object";
+  console.log(`${pass ? "PASS" : "FAIL"} /api/catalogue: HTTP ${response.status}; JSON=${body !== null}`);
+  if (!pass) failures++;
+} catch (e) {
+  console.error(`FAIL /api/catalogue: ${e instanceof Error ? e.message : String(e)}`);
+  failures++;
+}
+try {
+  const response = await fetch(new URL("/api/library", origin), { redirect: "manual", signal: AbortSignal.timeout(20000) });
+  const pass = response.status === 401;
+  console.log(`${pass ? "PASS" : "FAIL"} /api/library anonymous denial: HTTP ${response.status}`);
+  if (!pass) failures++;
+} catch (e) {
+  console.error(`FAIL /api/library: ${e instanceof Error ? e.message : String(e)}`);
+  failures++;
+}
+
 if (failures) {
   console.error(`Cloudflare staging gate failed (${failures} check(s)); do NOT attach a production domain.`);
   process.exitCode = 1;
